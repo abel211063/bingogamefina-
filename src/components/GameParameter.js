@@ -74,7 +74,7 @@ function GameParametersPanel({
   betAmount, setBetAmount, houseEdge, setHouseEdge,
   winningPattern, setWinningPattern, onStartGame, isStartGameDisabled,
   winningPatterns, currentVisualPattern, // Base pattern for predefined patterns (e.g., just middle line)
-  customPatternDefinition, setCustomPatternDefinition, // State for custom pattern
+  customPatternDefinition, setCustomPatternDefinition // State for custom pattern
 }) {
   // State to hold the pattern currently being displayed by the animation
   const [animatedDisplayPattern, setAnimatedDisplayPattern] = useState(
@@ -232,7 +232,7 @@ function GameParametersPanel({
           </div>
         </div>
         {/* House Edge (%) */}
-        <div hidden>
+        <div>
           <p className="mb-2 text-base font-semibold text-white">House Edge (%)</p>
           <div className="flex items-center gap-1">
             <button

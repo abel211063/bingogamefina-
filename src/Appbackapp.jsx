@@ -1,24 +1,25 @@
 // --- START OF FILE App.jsx ---
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import './App.css';
 
-// Import all functions from your new apiService
 import {
-  getBingoCardDefault, // Not used in App.jsx directly, but good to know it exists
   activateTickets,
-  getCashierConfig, // Not used in App.jsx directly, but good to know it exists
-  updateCashierConfig, // Not used in App.jsx directly, but good to know it exists
   updateGamePattern,
   finishGame,
   disqualifyBet,
   unassignBingoCard,
-  generateBingoGame, // Replaces start-game
-  getUserProfile, // Not used in App.jsx directly, but good to know it exists
-  getCashierSummary, // Used in ReportsModal
-  verifyBet, // Used in CheckClaimModal
-  loginUser, // Replaces axios.post for login
-  registerAdminWithBalance, // Replaces axios.post for admin registration
-  callNextNumber as apiCallNextNumber // Alias to avoid name collision with local callNextNumber
+  generateBingoGame,
+  getCashierSummary,
+  verifyBet,
+  loginUser,
+  registerAdminWithBalance,
+  callNextNumber as apiCallNextNumber,
+  registerRetailUser,
+  getAllRetailUsers,
+  getRetailUserBalance,
+  rechargeRetailUser,
+  updateRetailUserStatus,
+  getUserProfile
 } from './api/apiService';
 
 
@@ -27,43 +28,31 @@ import SettingsDrawer from './components/SettingsDrawer';
 import CheckClaimModal from './components/CheckClaimModal';
 import CallHistoryModal from './components/CallHistoryModal';
 import LogoutModal from './components/LogoutModal';
-import ReportsModal from './components/ReportsModal'; 
+import ReportsModal from './components/ReportsModal';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import AdminDashboard from './pages/AdminDashboard';
+
+import Swal from 'sweetalert2'
+
+import Confetti from 'react-confetti';
 
 
-// Dummy audio paths for demonstration. Replace with actual paths to your audio files.
-// Ensure these paths correctly point to your audio files in the public or assets folder.
-const bingoAudioMap = {
-  // ... (keep your existing bingoAudioMap)
-  'B1': '/audio/G49.mp3', 'B2': '/audio/G49.mp3', 'B3': '/audio/G49.mp3',
-  'B4': '/audio/G49.mp3', 'B5': '/audio/G49.mp3', 'B6': '/audio/G49.mp3',
-  'B7': '/audio/G49.mp3', 'B8': '/audio/G49.mp3', 'B9': '/audio/G49.mp3',
-  'B10': '/audio/G49.mp3', 'B11': '/audio/G49.mp3', 'B12': '/audio/G49.mp3',
-  'B13': '/audio/G49.mp3', 'B14': '/audio/G49.mp3', 'B15': '/audio/G49.mp3',
-  'I16': '/audio/G49.mp3', 'I17': '/audio/G49.mp3', 'I18': '/audio/G49.mp3',
-  'I19': '/audio/G49.mp3', 'I20': '/audio/G49.mp3', 'I21': '/audio/G49.mp3',
-  'I22': '/audio/G49.mp3', 'I23': '/audio/G49.mp3', 'I24': '/audio/G49.mp3',
-  'I25': '/audio/G49.mp3', 'I26': '/audio/G49.mp3', 'I27': '/audio/G49.mp3',
-  'I28': '/audio/G49.mp3', 'I29': '/audio/G49.mp3', 'I30': '/audio/G49.mp3',
-  'N31': '/audio/G49.mp3', 'N32': '/audio/G49.mp3', 'N33': '/audio/G49.mp3',
-  'N34': '/audio/G49.mp3', 'N35': '/audio/G49.mp3', 'N36': '/audio/G49.mp3',
-  'N37': '/audio/G49.mp3', 'N38': '/audio/G49.mp3', 'N39': '/audio/G49.mp3',
-  'N40': '/audio/G49.mp3', 'N41': '/audio/G49.mp3', 'N42': '/audio/G49.mp3',
-  'N43': '/audio/G49.mp3', 'N44': '/audio/G49.mp3', 'N45': '/audio/G49.mp3',
-  'G46': '/audio/G49.mp3', 'G47': '/audio/G49.mp3', 'G48': '/audio/G49.mp3',
-  'G49': '/audio/G49.mp3', 'G50': '/audio/G49.mp3', 'G51': '/audio/G49.mp3',
-  'G52': '/audio/G49.mp3', 'G53': '/audio/G49.mp3', 'G54': '/audio/G49.mp3',
-  'G55': '/audio/G49.mp3', 'G56': '/audio/G49.mp3', 'G57': '/audio/G49.mp3',
-  'G58': '/audio/G49.mp3', 'G59': '/audio/G49.mp3', 'G60': '/audio/G49.mp3',
-  'O61': '/audio/G49.mp3', 'O62': '/audio/G49.mp3', 'O63': '/audio/G49.mp3',
-  'O64': '/audio/G49.mp3', 'O65': '/audio/G49.mp3', 'O66': '/audio/G49.mp3',
-  'O67': '/audio/G49.mp3', 'O68': '/audio/G49.mp3', 'O69': '/audio/G49.mp3',
-  'O70': '/audio/G49.mp3', 'O71': '/audio/G49.mp3', 'O72': '/audio/G49.mp3',
-  'O73': '/audio/G49.mp3', 'O74': '/audio/G49.mp3', 'O75': '/audio/G49.mp3',
+const audioLanguageMap = {
+  'Amharic Male': '/audio/amharic_male/',
+  'Amharic Female': '/audio/amharic_female/',
+  'Afaan Oromoo Male': '/audio/afaan_oromoo_male/',
+  'Afaan Oromoo Female': '/audio/afaan_oromoo_female/',
+  'Tigrinya Male': '/audio/tigrinya_male/',
+  'Tigrinya Female': '/audio/tigrinya_female/',
+  'English Male': '/audio/english_male/'
 };
 
+const getBingoAudioFilename = (number) => {
+  const letter = getBingoLetter(number);
+  return `${letter}${number}.mp3`;
+};
 
 const getBingoLetter = (num) => {
   if (num >= 1 && num <= 15) return 'B';
@@ -74,67 +63,180 @@ const getBingoLetter = (num) => {
   return '';
 };
 
-const playBingoSound = (number) => {
-  const letter = getBingoLetter(number);
-  const key = `${letter}${number}`;
-  const audioPath = bingoAudioMap[key];
-
-  if (audioPath) {
-    const audio = new Audio(audioPath);
-    audio.play().catch(e => console.error("Error playing audio:", e));
-  } else {
-    console.warn(`No audio found for ${key}`);
-  }
-};
-
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showRegisterPage, setShowRegisterPage] = useState(false); // State to toggle between Login/Register
+  const [userRole, setUserRole] = useState(null);
+  const [showRegisterPage, setShowRegisterPage] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
+  const [currentUsername, setCurrentUsername] = useState(null);
 
   const [gameId, setGameId] = useState(null);
-  const [gameStatus, setGameStatus] = useState('idle'); // 'idle', 'starting', 'waiting_for_players', 'in_progress', 'ended'
+  const [gameStatus, setGameStatus] = useState('idle'); // Can be 'idle', 'waiting_for_players', 'in_progress', 'claims_only', 'ended'
   const [gameSettings, setGameSettings] = useState({
-    betAmount: 10, // Initializing with numbers is good
-    houseEdge: 15, // Initializing with numbers is good
-    winningPattern: 'anyTwoLines',
+    betAmount: 10,
+    houseEdge: 15,
+    winningPattern: 'anyLine', // MODIFIED: Set to match screenshot's visual pattern
   });
-  const [uncalledNumbersCount, setUncalledNumbersCount] = useState(0); // For displaying remaining count
+  const [uncalledNumbersCount, setUncalledNumbersCount] = useState(0);
   const [drawnNumbers, setDrawnNumbers] = useState([]);
   const [lastCalledNumber, setLastCalledNumber] = useState(null);
-  const [players, setPlayers] = useState([]); // Players added to the current game session
-  const [selectedTickets, setSelectedTickets] = useState([]); // Tickets selected in TicketSelectionPanel
+  const gameTimerRef = useRef(null);
+  const [players, setPlayers] = useState([]);
+  const [selectedTickets, setSelectedTickets] = useState([]);
 
   const settingsDrawerRef = useRef(null);
   const [timeInterval, setTimeInterval] = useState(3);
   const [printDefaultCards, setPrintDefaultCards] = useState(false);
   const [manualMode, setManualMode] = useState(false);
   const [audibleCaller, setAudibleCaller] = useState(true);
-  const [selectedTheme, setSelectedTheme] = useState('red');
+  const [selectedTheme, setSelectedTheme] = useState('red'); // Keep 'red' as the theme for the gradient
   const [selectedDisplayLanguage, setSelectedDisplayLanguage] = useState('English');
   const [selectedAudioLanguage, setSelectedAudioLanguage] = useState('Amharic Male');
 
   const [isCheckClaimModalOpen, setIsCheckClaimModalOpen] = useState(false);
   const [isCallHistoryModalOpen, setIsCallHistoryModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false); 
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
 
+  // This state is now mostly managed by gameStatus, but kept for clarity during transitions
+  const [isGamePausedForClaim, setIsGamePausedForClaim] = useState(false);
+
+  const [showAppConfetti, setShowAppConfetti] = useState(false);
+
+   const [isPaused, setIsPaused] = useState(true); // Game is paused by default until 'Start' is hit
+   const [isCallingNumber, setIsCallingNumber] = useState(false); // Prevents concurrent calls
+   const isCallingRef = useRef(false);
+   const prevGameState = useRef({ isPaused, isGamePausedForClaim });
+   const [audioLoadingProgress, setAudioLoadingProgress] = useState(0);
+   const audioCacheRef = useRef(new Map());
+
+
+  const winnerPrize = useMemo(() => {
+    const betAmount = gameSettings.betAmount || 0;
+    const houseEdge = gameSettings.houseEdge || 0;
+    // If players have joined, calculate prize based on the total pot
+    if (players.length > 0) {
+        const totalPot = players.length * betAmount;
+        const prize = totalPot - (totalPot * (houseEdge / 100));
+        return prize > 0 ? prize.toFixed(2) : '0.00';
+    }
+    // If no players, show the potential prize for a single ticket
+    const singlePrize = betAmount - (betAmount * (houseEdge / 100));
+    return singlePrize > 0 ? singlePrize.toFixed(2) : '0.00';
+
+  }, [players.length, gameSettings.betAmount, gameSettings.houseEdge]);
+ 
+   // NEW: Function to play sound from the preloaded cache
+  const playBingoSound = useCallback((number, language) => {
+    const basePath = audioLanguageMap[language];
+    if (!basePath) {
+      console.warn(`No audio path for language: ${language}`);
+      return;
+    }
+    const filename = getBingoAudioFilename(number);
+    const audioPath = `${basePath}${filename}`;
+
+    const cachedAudio = audioCacheRef.current.get(audioPath);
+    if (cachedAudio) {
+      cachedAudio.currentTime = 0; // Rewind to start in case it's played again quickly
+      cachedAudio.play().catch(e => console.error(`Error playing cached audio ${audioPath}:`, e));
+    } else {
+      // Fallback for when preloading hasn't finished or failed for a file
+      console.warn(`Audio not found in cache, playing on-demand: ${audioPath}`);
+      const audio = new Audio(audioPath);
+      audio.play().catch(e => console.error(`Error playing on-demand audio ${audioPath}:`, e));
+    }
+  }, []); // Empty dependency array as it uses refs and constants
+
+  // NEW: useEffect for preloading audio files
+  useEffect(() => {
+    const preloadAudio = async () => {
+      const language = 'Amharic Male'; // Default language to preload
+      const basePath = audioLanguageMap[language];
+      if (!basePath) return;
+
+      const totalSounds = 75;
+      let loadedCount = 0;
+
+      for (let i = 1; i <= totalSounds; i++) {
+        const filename = getBingoAudioFilename(i);
+        const path = `${basePath}${filename}`;
+        
+        const audio = new Audio(path);
+        // This event fires when the browser has enough data to play the audio without stopping
+        audio.oncanplaythrough = () => {
+          loadedCount++;
+          setAudioLoadingProgress(Math.round((loadedCount / totalSounds) * 100));
+          audioCacheRef.current.set(path, audio); // Add the ready audio object to our cache
+        };
+        audio.onerror = () => { console.error(`Failed to preload: ${path}`); };
+      }
+    };
+
+    preloadAudio();
+  }, []); // Run only once on initial component mount
+
+  // NEW function to refresh user profile including balance and isActive status
+const refreshUserProfile = useCallback(async () => {
+  // Only try to refresh if user is logged in and is a retail user
+  if (!isLoggedIn || userRole !== 'retail') return;
+  try {
+    const response = await getUserProfile(); // Call the API service
+    setUserProfile(response.data.profile); // Update state with the full profile
+  } catch (error) {
+    console.error('Failed to refresh user profile:', error.response?.data?.message || error.message);
+    // Handle token expiration or other severe errors
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      handleLogout(); // Force logout if unauthorized
+    }
+  }
+}, [isLoggedIn, userRole]); // Dependencies: only re-create if these change
+
+ 
+// MODIFIED: useEffect hook for initial login check
+useEffect(() => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    try {
+      const decodedToken = JSON.parse(atob(token.split('.')[1]));
+      setIsLoggedIn(true);
+      setUserRole(decodedToken.role);
+      setCurrentUsername(decodedToken.username); // Directly set from token for immediate display
+
+      // NEW: If the user is a retail user, refresh their full profile
+      if (decodedToken.role === 'retail') {
+          refreshUserProfile(); // Fetch full profile for retail users
+      }
+
+    } catch (e) {
+      console.error("Failed to decode token:", e);
+      localStorage.removeItem('token');
+      setIsLoggedIn(false);
+      setUserRole(null);
+      setCurrentUsername(null);
+      setUserProfile(null); // NEW: Reset userProfile on decode failure
+    }
+  }
+  else {
+   setCurrentUsername(null);
+   setUserProfile(null); // NEW: Reset userProfile if no token
+   }
+}, [selectedTheme, refreshUserProfile]); // Added refreshUserProfile to dependencies
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      setIsLoggedIn(true);
-    }
-  }, []);
+    document.documentElement.setAttribute('data-theme', selectedTheme);
+  }, [selectedTheme]);
 
-  // --- Handlers for Settings Drawer ---
+
   const handleTimeIntervalChange = useCallback((value) => setTimeInterval(value), []);
   const handlePrintDefaultCardsChange = useCallback((value) => setPrintDefaultCards(value), []);
   const handleManualModeChange = useCallback((value) => setManualMode(value), []);
   const handleAudibleCallerChange = useCallback((value) => setAudibleCaller(value), []);
-  const handleThemeChange = useCallback((event) => setSelectedTheme(event.target.value), []);
-  const handleDisplayLanguageChange = useCallback((event) => setSelectedDisplayLanguage(event.target.value), []);
-  const handleAudioLanguageChange = useCallback((event) => setSelectedAudioLanguage(event.target.value), []);
+  const handleThemeChange = useCallback((value) => setSelectedTheme(value), []);
+  const handleDisplayLanguageChange = useCallback((value) => setSelectedDisplayLanguage(value), []);
+  const handleAudioLanguageChange = useCallback((value) => setSelectedAudioLanguage(value), []);
+
 
   const openSettingsDrawer = useCallback(() => {
     if (settingsDrawerRef.current) {
@@ -147,55 +249,90 @@ function App() {
     }
   }, []);
 
-  // --- Handlers for Modals ---
-  const openCheckClaimModal = useCallback(() => setIsCheckClaimModalOpen(true), []);
-  const closeCheckClaimModal = useCallback(() => setIsCheckClaimModalOpen(false), []);
+  // MODIFIED: Pause game AND clear timer when Check Claim modal opens
+  const openCheckClaimModal = useCallback(() => {
+    setIsCheckClaimModalOpen(true);
+    if (gameStatus === 'in_progress' || gameStatus === 'claims_only') { // Pause always if game active or in claims mode
+      setIsGamePausedForClaim(true); // Frontend pause flag
+      // CRITICAL FIX: Immediately clear any pending auto-call to prevent race condition
+      if (gameTimerRef.current) {
+        clearTimeout(gameTimerRef.current);
+        gameTimerRef.current = null;
+      }
+    }
+  }, [gameStatus, gameTimerRef]);
+
+
 
   const openCallHistoryModal = useCallback(() => setIsCallHistoryModalOpen(true), []);
   const closeCallHistoryModal = useCallback(() => setIsCallHistoryModalOpen(false), []);
 
   const openLogoutModal = useCallback(() => setIsLogoutModalOpen(true), []);
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-    console.log('User logged out.');
-    // Reset all game states on logout
-    setGameStatus('idle');
-    setGameId(null);
-    setDrawnNumbers([]);
-    setLastCalledNumber(null);
-    setPlayers([]);
-    setUncalledNumbersCount(0);
-    setSelectedTickets([]);
-  }, []);
+ 
 
-  // Handlers for Reports Modal
+  // MODIFIED: handleLogout to reset userProfile
+const handleLogout = useCallback(() => {
+  localStorage.removeItem('token');
+  setIsLoggedIn(false);
+  setUserRole(null);
+  setCurrentUsername(null);
+  setUserProfile(null); // NEW: Reset user profile on logout
+  console.log('User logged out.');
+  // Reset game state on logout
+  setGameStatus('idle');
+  setGameId(null);
+  setDrawnNumbers([]);
+  setLastCalledNumber(null);
+  setPlayers([]); // CRITICAL: Clear players array for the current game
+  setUncalledNumbersCount(0);
+  setSelectedTickets([]);
+
+  if (gameTimerRef.current) { // Clear any pending timers
+    clearTimeout(gameTimerRef.current);
+    gameTimerRef.current = null;
+  }
+  setIsGamePausedForClaim(false); // Ensure pause state is reset on logout
+}, []);
+
   const openReportsModal = useCallback(() => setIsReportsModalOpen(true), []);
   const closeReportsModal = useCallback(() => setIsReportsModalOpen(false), []);
 
-  // Handlers for Login/Register Pages
-  const handleLogin = useCallback(async (username, password) => {
-    try {
-      const response = await loginUser(username, password); // Use apiService function
-      localStorage.setItem('token', response.data.token);
-      setIsLoggedIn(true);
-      console.log('Login successful:', response.data.message);
-    } catch (error) {
-      console.error('Login failed:', error.response?.data?.message || error.message || 'Invalid credentials');
-      alert(error.response?.data?.message || 'Login failed!');
+ // MODIFIED: handleLogin to fetch user profile for retail users
+const handleLogin = useCallback(async (username, password) => {
+  try {
+    const response = await loginUser(username, password);
+    localStorage.setItem('token', response.data.token);
+    setIsLoggedIn(true);
+    setCurrentUsername(response.data.user.username);
+    setUserRole(response.data.user.role);
+    // NEW: After successful login, refresh the full profile if retail
+    if (response.data.user.role === 'retail') {
+        await refreshUserProfile(); // Ensure profile is up-to-date immediately
     }
-  }, []);
+    console.log('Login successful:', response.data.message);
+  } catch (error) {
+    console.error('Login failed:', error.response?.data?.message || error.message || 'Invalid credentials');
+     Swal.fire({
+      title: error.response?.data?.message || 'Login failed!',
+      icon: "error"
+    });
+  }
+}, [refreshUserProfile]); // Dependency for useCallback
 
   const handleRegister = useCallback(async (username, password, initialBalance) => {
     try {
-      // NOTE: This endpoint is for initial admin setup without auth.
-      // In a real app, general user registration would be different.
-      const response = await registerAdminWithBalance(username, password, initialBalance); // Use apiService function
-      alert(response.data.message);
-      setShowRegisterPage(false); // Switch back to login page after successful registration
+      const response = await registerAdminWithBalance(username, password, initialBalance);
+     Swal.fire({
+       title: response.data.message,
+       icon: "success"
+     });
+      setShowRegisterPage(false);
     } catch (error) {
       console.error('Registration failed:', error.response?.data?.message || error.message);
-      alert(error.response?.data?.message || 'Registration failed!');
+       Swal.fire({
+        title: error.response?.data?.message || 'Registration failed!',
+        icon: "error"
+      });
     }
   }, []);
 
@@ -203,21 +340,17 @@ function App() {
   const handleSwitchToRegister = useCallback(() => setShowRegisterPage(true), []);
 
 
-  // FIX: handleGameSettingChange now handles the type conversion based on settingName
   const handleGameSettingChange = useCallback((settingName, value) => {
     setGameSettings(prev => {
       let newValue = value;
-      // Perform number conversion only for betAmount and houseEdge
       if (settingName === 'betAmount' || settingName === 'houseEdge') {
         if (value === '') {
-          newValue = ''; // Allow empty string for numeric inputs
+          newValue = '';
         } else {
           const numValue = Number(value);
-          newValue = isNaN(numValue) ? '' : numValue; // Ensure it's a number or empty string
+          newValue = isNaN(numValue) ? '' : numValue;
         }
       }
-      // For winningPattern, value is already a string from HomePage
-      // console.log(`App.jsx: Setting ${settingName} to`, newValue, `(was ${prev[settingName]})`); // For debugging
       return {
         ...prev,
         [settingName]: newValue
@@ -225,225 +358,476 @@ function App() {
     });
   }, []);
 
-  // handleStartGame now only responsible for transitioning to 'in_progress' and fetching initial game state (if not already set)
-  const handleStartGame = useCallback(async () => {
-    if (!gameId) {
-        alert("Game not initialized. Please activate tickets first which will start a game.");
+
+// In App.jsx, REPLACE your callNextNumber function with this one
+const callNextNumber = useCallback(async () => {
+    // This ref check is instant and prevents race conditions
+    if (isCallingRef.current) return;
+
+    if (!gameId || gameStatus !== 'in_progress' || isPaused || isGamePausedForClaim) {
         return;
     }
 
-    // If game is already waiting for players and Start Game button is pressed, transition to in_progress
-    if (gameStatus === 'waiting_for_players') {
-        try {
-            // The actual status transition on backend happens with first call-number
-            setGameStatus('in_progress'); // Client-side state transition
-            console.log(`Game ${gameId} transitioned to in_progress (client-side).`);
-        } catch (error) {
-            console.error('Error transitioning game to in_progress:', error.response?.data?.message || error.message);
-            alert('Failed to start game. Please try again.');
+    try {
+        isCallingRef.current = true; // Instantly block other calls
+        setIsCallingNumber(true); // Update state for UI changes
+
+        const response = await apiCallNextNumber(gameId);
+        const { lastCalledNumber, drawnNumbers, gameStatus: newGameStatus, uncalledNumbersCount } = response.data;
+        
+        setLastCalledNumber(lastCalledNumber);
+        setDrawnNumbers(drawnNumbers);
+        setUncalledNumbersCount(uncalledNumbersCount);
+        setGameStatus(newGameStatus);
+
+        if (audibleCaller && lastCalledNumber) {
+            playBingoSound(lastCalledNumber.number, selectedAudioLanguage);
         }
+    } catch (error) {
+        console.error('Error calling next number:', error.response?.data?.message || error.message);
+        // ... (rest of your error handling)
+    } finally {
+        isCallingRef.current = false; // Instantly unblock
+        setIsCallingNumber(false); // Update state for UI
+    }
+}, [gameId, gameStatus, isPaused, isGamePausedForClaim, audibleCaller, selectedAudioLanguage, playBingoSound]);
+
+    // --- REPLACE THIS FUNCTION in App.jsx ---
+  // In App.jsx
+const closeCheckClaimModal = useCallback(() => {
+   setIsCheckClaimModalOpen(false);
+   if (gameStatus === 'in_progress' && isGamePausedForClaim) { 
+     setIsGamePausedForClaim(false);
+     // REMOVE THE LINE BELOW
+     // setTimeout(() => callNextNumber(), 0);
+   }
+ }, [gameStatus, isGamePausedForClaim]); // REMOVED callNextNumber dependency
+
+// In App.jsx
+const handleStartGame = useCallback(async () => {
+    // ... (keep all the checks) ...
+    if (gameStatus === 'waiting_for_players') {
+        setGameStatus('in_progress');
+        setIsPaused(false);
+        // REMOVE THE LINE BELOW
+        // setTimeout(() => callNextNumber(), 0); 
+        console.log(`Game ${gameId} client-side status set to 'in_progress'.`);
     } else {
         console.log(`Game is already in status: ${gameStatus}. Cannot start.`);
     }
-  }, [gameId, gameStatus]);
+}, [gameId, gameStatus]); // REMOVED callNextNumber dependency
 
 
-  const callNextNumber = useCallback(async () => {
-    if (!gameId) {
-      console.error('No game ID found to call numbers.');
+
+// In App.jsx
+const handleTogglePause = useCallback(() => {
+   if (gameStatus === 'in_progress') {
+     const willBePaused = !isPaused;
+     setIsPaused(willBePaused);
+
+     // REMOVE THE ENTIRE 'if' BLOCK BELOW
+     /*
+     if (!willBePaused) {
+       setTimeout(() => callNextNumber(), 0); 
+     }
+     */
+   }
+ }, [gameStatus, isPaused]); // REMOVED callNextNumber dependency
+
+
+   // handleAddPlayers logic: Responsible for ensuring a game exists and adding players to it.
+// From App.jsx
+
+  // handleAddPlayers logic: Responsible for ensuring a game exists and adding players to it.
+// --- REPLACE your old handleAddPlayers function with this new one ---
+
+const handleAddPlayers = useCallback(async (selectedTicketsForActivation, customPatternDefinition) => {
+    if (selectedTicketsForActivation.length === 0) {
+      Swal.fire({ title: "Please select tickets to activate.", icon: "warning" });
+      return;
+    }
+    if (gameStatus === 'in_progress' || gameStatus === 'claims_only') {
+      Swal.fire({ title: "Cannot activate tickets while a game is in progress.", icon: "info" });
       return;
     }
 
-    try {
-      const response = await apiCallNextNumber(gameId); // Use apiService function
-      const { lastCalledNumber, drawnNumbers, gameStatus: newGameStatus, uncalledNumbersCount } = response.data;
-      setLastCalledNumber(lastCalledNumber);
-      setDrawnNumbers(drawnNumbers);
-      setUncalledNumbersCount(uncalledNumbersCount);
-      setGameStatus(newGameStatus);
+    // This shows an "Activating..." popup IMMEDIATELY
+    Swal.fire({
+      title: 'Activating Tickets...',
+      text: 'Please wait while we set up the game.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
 
-      if (audibleCaller && lastCalledNumber) {
-        playBingoSound(lastCalledNumber.number);
+    try {
+      let gameToActOnId = gameId;
+
+      if (!gameToActOnId || gameStatus === 'idle' || gameStatus === 'ended') {
+        const gameSettingsToSend = {
+          betAmount: gameSettings.betAmount,
+          houseEdge: gameSettings.houseEdge,
+          winningPattern: gameSettings.winningPattern,
+          ...(gameSettings.winningPattern === 'custom' && { customPatternDefinition })
+        };
+        const startGameResponse = await generateBingoGame(gameSettingsToSend);
+        gameToActOnId = startGameResponse.data.gameId;
+        setGameId(gameToActOnId);
+        setGameStatus(startGameResponse.data.gameState.status);
+        setUncalledNumbersCount(75);
+        setPlayers([]);
+        setDrawnNumbers([]);
+        setLastCalledNumber(null);
+        setIsPaused(true);
       }
 
+      const response = await activateTickets(gameToActOnId, selectedTicketsForActivation);
+      setPlayers(response.data.players);
+      setSelectedTickets([]);
+      
+      // This updates the popup to show the "Success" message
+      Swal.fire({
+        title: 'Success!',
+        text: `Successfully activated ${selectedTicketsForActivation.length} tickets.`,
+        icon: 'success',
+        timer: 2000 // Automatically close after 2 seconds
+      });
+
     } catch (error) {
-      console.error('Error calling next number:', error.response?.data?.message || error.message);
-      // Specific error handling for game not in progress
-      if (error.response && error.response.status === 400 &&
-          (error.response.data.message.includes('game is not in progress') ||
-           error.response.data.message.includes('Cannot start calling numbers without any players.'))) {
-          alert("Game is not yet in progress. Please ensure tickets are activated and click 'Start Game'.");
-          setGameStatus('waiting_for_players'); // Keep status in sync or revert as appropriate
-      } else if (error.response && error.response.data.message.includes('All numbers called! Game ended.')) {
-          setGameStatus('ended');
+      console.error('Error adding players:', error.response?.data?.message || error.message);
+      let errorMessage = 'Failed to add players. Please try again.';
+      if (error.response?.status === 404) {
+        errorMessage = "The game session was lost. Please try activating tickets again.";
+        setGameStatus('idle');
+        setGameId(null);
+        setPlayers([]);
+        setDrawnNumbers([]);
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      // This updates the popup to show the "Error" message
+      Swal.fire({
+        title: 'Error!',
+        text: errorMessage,
+        icon: 'error'
+      });
+    } finally {
+      // This runs in the background after the user gets their message
+      await refreshUserProfile();
+    }
+}, [gameId, gameStatus, gameSettings, refreshUserProfile]);
+
+
+
+const handleVerifyBet = useCallback(async (gameId, ticketNumber) => {
+  try {
+    const claimResult = await verifyBet(gameId, ticketNumber);
+    console.log("Claim verification response:", claimResult);
+
+    if (claimResult.isValid) {
+      setGameStatus('claims_only');
+      setIsGamePausedForClaim(true);
+      
+      // --- THE NEW CONFETTI LOGIC ---
+      // 1. Turn the confetti ON
+      setShowAppConfetti(true);
+      
+      // 2. Set a timer to turn it OFF after 7 seconds (7000 milliseconds)
+      setTimeout(() => {
+        setShowAppConfetti(false);
+      }, 7000); 
+      // --- END OF NEW LOGIC ---
+
+      const winSound = new Audio('/audio/win-cheer.mp3');
+      winSound.play().catch(e => console.error("Error playing win sound:", e));
+      
+    } else {
+      if (claimResult.message && !claimResult.message.includes('not in this game')) {
+        const notWinSound = new Audio('/audio/not-win.mp3');
+        notWinSound.play().catch(e => console.error("Error playing not-win sound:", e));
       }
     }
-  }, [gameId, audibleCaller]);
+    
+    return claimResult;
 
-  // handleAddPlayers logic is crucial for starting a new game if none is active, then adding players
-  const handleAddPlayers = useCallback(async (newTickets) => {
-    if (selectedTickets.length === 0) {
-        alert('Please select tickets to activate.');
-        return;
+  } catch (error) {
+    console.error('Error during bet verification:', error);
+    if (gameStatus === 'in_progress') {
+      setIsGamePausedForClaim(false);
     }
+    throw error; 
+  } finally {
+    await refreshUserProfile();
+  }
+}, [gameStatus, refreshUserProfile]);
 
-    let currentOrNewGameId = gameId;
-
-    // Phase 1: If no game is active (gameId is null or status is idle/ended), start a new game first
-    if (!currentOrNewGameId || gameStatus === 'idle' || gameStatus === 'ended') {
-        try {
-            const startGameResponse = await generateBingoGame(gameSettings); // Use apiService function
-            currentOrNewGameId = startGameResponse.data.gameId;
-            setGameId(currentOrNewGameId);
-            setGameStatus(startGameResponse.data.gameState.status); // Should be 'waiting_for_players'
-            setUncalledNumbersCount(75); // Total numbers in Bingo, before any are called
-            setPlayers([]); // Clear players from previous game if new game started
-            console.log('New game started automatically by ticket activation:', currentOrNewGameId);
-
-        } catch (error) {
-            console.error('Error starting new game automatically:', error.response?.data?.message || error.message);
-            alert('Failed to start a new game. Please try again after logging in.');
-            setGameStatus('idle');
-            return; // Stop execution if game couldn't start
-        }
-    }
-
-    // Phase 2: Add players to the current (or newly started) game
-    try {
-        // Here, the backend `activateTickets` doesn't currently take gameId in path,
-        // it assumes one active game. If you have multiple users/concurrent games,
-        // you'd need to explicitly pass gameId in the activateTickets API.
-        const response = await activateTickets(selectedTickets); // Use apiService function
-        setPlayers(response.data.players); // Update players state with backend response
-        setSelectedTickets([]); // Clear selected tickets after activation
-        console.log('Tickets activated and players added to game:', response.data.players);
-        alert(`Successfully activated ${selectedTickets.length} tickets and added players!`);
-
-    } catch (error) {
-        console.error('Error adding players:', error.response?.data?.message || error.message);
-        alert('Failed to add players. Ensure the game is in a "waiting_for_players" state or that a game is running.');
-    }
-  }, [gameId, gameSettings, selectedTickets, gameStatus]);
-
-  const handleRemoveSlip = useCallback(async (slipId) => {
+ // MODIFIED: handleRemoveSlip to refresh user profile after cancellation
+const handleRemoveSlip = useCallback(async (slipId) => {
     if (!gameId) {
-      alert('No active game to remove players from.');
+      Swal.fire({
+        title: "No active game to remove players from. Please start a new game.",
+        icon: "info"
+      });
       return;
     }
     try {
-        const response = await unassignBingoCard(gameId, slipId); // Use apiService function
-        setPlayers(response.data.players); // Update players state with backend response
+        const response = await unassignBingoCard(gameId, slipId);
+        setPlayers(response.data.players);
+        await refreshUserProfile(); // NEW: Refresh user profile after cancellation
         console.log('Player removed:', slipId);
     } catch (error) {
         console.error('Error removing player:', error.response?.data?.message || error.message);
-        alert('Failed to remove player. Game must be in "waiting_for_players" state.');
+        if (error.response?.status === 404 && error.response?.data?.message.includes('Game not found in active memory')) {
+          Swal.fire({
+            title: "The current game session has ended or restarted. Please start a new game.",
+            icon: "info"
+          });
+            setGameStatus('idle');
+            setGameId(null);
+            setPlayers([]);
+            setIsGamePausedForClaim(false); // Ensure pause state is reset if game reset
+        } else {
+          Swal.fire({
+            title: error.response?.data?.message || 'Failed to remove player.',
+            icon: "info"
+          });
+        }
     }
-  }, [gameId]);
+  }, [gameId, refreshUserProfile]);
 
   const handleEndGame = useCallback(async () => {
     if (!gameId) {
-      alert('No game currently in progress to end.');
+      Swal.fire({
+        title: "No game currently in progress to end.",
+        icon: "warning"
+      });
       return;
     }
-    if (!window.confirm("Are you sure you want to end the current game? This cannot be undone.")) {
+
+      const result = await Swal.fire({
+        title: "Are you sure you want to end the current game?",
+        text: "This cannot be undone.",
+        icon: "warning", // Or 'question' for a more neutral tone
+        showCancelButton: true, // This adds the "Cancel" button
+        confirmButtonColor: "#d33", // A common color for destructive actions (red)
+        cancelButtonColor: "#3085d6", // Default blue for cancel
+        confirmButtonText: "Yes, end it!", // Customize confirm button text
+        cancelButtonText: "No, cancel" // Customize cancel button text
+    });
+
+     if (!result.isConfirmed) {
         return;
     }
+
     try {
-        await finishGame(gameId); // Use apiService function
-        setGameStatus('idle'); // Back to idle state
+        await finishGame(gameId); // This API call handles deleting the game from backend memory
+        setGameStatus('idle'); // Full reset on frontend
         setGameId(null);
         setDrawnNumbers([]);
         setLastCalledNumber(null);
-        setPlayers([]); // Clear players for next game
+        setPlayers([]);
         setUncalledNumbersCount(0);
-        setSelectedTickets([]); // Clear selected tickets for new game
+        setSelectedTickets([]);
+        setShowAppConfetti(false);
+        if (gameTimerRef.current) { // Clear any pending timers
+            clearTimeout(gameTimerRef.current);
+            gameTimerRef.current = null;
+        }
+        setIsGamePausedForClaim(false); // Game ended, ensure not paused
         console.log('Game ended successfully.');
-        alert("Game has been ended!");
-    } catch (error) {
+        Swal.fire({
+          title: "Game has been ended!",
+          icon: "success",
+          timer:1000
+        });
+    }
+    catch (error) {
         console.error('Error ending game:', error.response?.data?.message || error.message);
-        alert('Failed to end game.');
+        if (error.response?.status === 404 && error.response?.data?.message.includes('Game not found')) {
+          Swal.fire({
+            title: "The game session was lost. Game already ended or server restarted.",
+            icon: "error"
+          });
+            setGameStatus('idle');
+            setGameId(null);
+            setPlayers([]);
+            setDrawnNumbers([]);
+            setIsGamePausedForClaim(false); // Ensure not paused if reset
+        } else {
+           Swal.fire({
+            title: "Failed to end game.",
+            icon: "error"
+          });
+        }
     }
-  }, [gameId]);
+  }, [gameId, gameTimerRef]); // Added gameTimerRef to dependencies
 
 
-  // Handle automatic number calling if not in manual mode
-  useEffect(() => {
-    let timer;
-    if (gameStatus === 'in_progress' && !manualMode) {
-      if (uncalledNumbersCount > 0) {
-        timer = setTimeout(callNextNumber, timeInterval * 1000);
-      } else if (uncalledNumbersCount === 0 && drawnNumbers.length === 75) {
-        setGameStatus('ended'); // All numbers drawn, transition to 'ended'
-      }
+
+
+
+
+
+
+
+
+
+
+
+  // In App.jsx
+// --- REPLACE your main game timer useEffect with this final version ---
+useEffect(() => {
+    // This function runs at the end of the effect to update our ref for the *next* render.
+    const updatePreviousState = () => {
+        prevGameState.current = { isPaused, isGamePausedForClaim };
+    };
+
+    // Condition to STOP: If the game shouldn't be auto-calling, clear any timer and exit.
+    if (gameStatus !== 'in_progress' || manualMode || isGamePausedForClaim || isPaused) {
+        if (gameTimerRef.current) {
+            clearTimeout(gameTimerRef.current);
+            gameTimerRef.current = null;
+        }
+        updatePreviousState(); // Still update the state ref before exiting
+        return;
     }
-    return () => clearTimeout(timer);
-  }, [gameStatus, manualMode, drawnNumbers.length, timeInterval, uncalledNumbersCount, callNextNumber]);
+
+    // --- SMART DELAY LOGIC ---
+    const wasPaused = prevGameState.current.isPaused;
+    const wasPausedForClaim = prevGameState.current.isGamePausedForClaim;
+
+    // A "resume" event is when the game was paused before, but isn't now.
+    const justResumed = (wasPaused && !isPaused) || (wasPausedForClaim && !isGamePausedForClaim);
+
+    const isFirstCall = drawnNumbers.length === 0;
+    let delay = timeInterval * 1000; // Default delay is the user-set interval
+
+    if (isFirstCall) {
+        delay = 1000; // 1-second delay for the very first number.
+    } else if (justResumed) {
+        delay = 10; // Nearly instant (10ms) call when resuming from pause or claim.
+    }
+
+    gameTimerRef.current = setTimeout(callNextNumber, delay);
+
+    // Update the ref for the next time this effect runs.
+    updatePreviousState();
+
+    // The cleanup function is crucial to prevent multiple timers running.
+    return () => {
+        if (gameTimerRef.current) {
+            clearTimeout(gameTimerRef.current);
+            gameTimerRef.current = null;
+        }
+    };
+}, [
+    drawnNumbers.length, 
+    gameStatus, 
+    isPaused, 
+    isGamePausedForClaim, 
+    manualMode, 
+    timeInterval, 
+    callNextNumber
+]);
 
 
-  return (
+
+   return (
     <div id="root">
+       {showAppConfetti && (
+         <Confetti
+           style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', zIndex: 1051 }}
+           recycle={false}
+           numberOfPieces={500}
+           onConfettiComplete={() => setShowAppConfetti(false)}
+         />
+       )}
+       {audioLoadingProgress > 0 && audioLoadingProgress < 100 && (
+         <div className="fixed bottom-2 right-2 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg z-50">
+           Loading sounds... {audioLoadingProgress}%
+         </div>
+       )}
+
       <div className="Toastify"></div>
 
-      {/* Pass verifyBet from apiService to CheckClaimModal */}
-      <CheckClaimModal isOpen={isCheckClaimModalOpen} onClose={closeCheckClaimModal} gameId={gameId} verifyBet={verifyBet} />
+     <CheckClaimModal 
+     isOpen={isCheckClaimModalOpen} 
+    onClose={closeCheckClaimModal} 
+    gameId={gameId} 
+    verifyBet={handleVerifyBet}
+    drawnNumbers={drawnNumbers}
+    winningPatternName={gameSettings.winningPattern}
+    customPatternGrid={gameSettings.winningPattern === 'custom' ? gameSettings.customPatternDefinition : null} 
+     />
       <CallHistoryModal isOpen={isCallHistoryModalOpen} onClose={closeCallHistoryModal} />
       <LogoutModal isOpen={isLogoutModalOpen} onClose={() => setIsLogoutModalOpen(false)} onConfirmLogout={handleLogout} />
-      {/* Pass getCashierSummary from apiService to ReportsModal */}
       <ReportsModal isOpen={isReportsModalOpen} onClose={closeReportsModal} getCashierSummary={getCashierSummary} />
 
       {isLoggedIn ? (
-        <div className="h-screen w-full overflow-hidden">
-          <div className="root-layout h-screen w-screen overflow-x-hidden">
-            <main className="h-full">
-              <div className="h-full w-full overflow-hidden bg-gradient-to-br from-dama-red-dark via-dama-red-mid to-dama-red-light">
-                <Navbar
-                  onOpenReports={openReportsModal}
-                  onOpenSettings={openSettingsDrawer}
-                  onOpenLogout={openLogoutModal}
+        userRole === 'admin' ? (
+          <AdminDashboard onLogout={handleLogout} />
+        ) : (
+          <div className="h-screen w-full overflow-hidden">
+            <div className="root-layout h-screen w-screen overflow-x-hidden">
+              <main className="h-full">
+                {/* MODIFIED: Use the red gradient background for the game */}
+                <div className={`h-full w-full overflow-hidden ${selectedTheme === 'red' ? 'bg-gradient-to-br from-dama-red-dark via-dama-red-mid to-dama-red-light' : 'bg-base-100'}`}>
+                  <Navbar
+                    onOpenReports={openReportsModal}
+                    onOpenSettings={openSettingsDrawer}
+                    onOpenLogout={openLogoutModal}
+                    currentUsername={currentUsername}
+                  />
+                  <HomePage
+                    gameSettings={gameSettings}
+                    setGameSettings={handleGameSettingChange}
+                    onStartGame={handleStartGame}
+                    gameId={gameId}
+                    gameStatus={gameStatus}
+                    drawnNumbers={drawnNumbers}
+                    lastCalledNumber={lastCalledNumber}
+                    onCallNextNumber={callNextNumber}
+                    players={players}
+                    setPlayers={setPlayers}
+                    onAddPlayers={handleAddPlayers}
+                    onRemoveSlip={handleRemoveSlip}
+                    onEndGame={handleEndGame}
+                    isPaused={isPaused}
+                    isGamePausedForClaim={isGamePausedForClaim}
+                    onTogglePause={handleTogglePause}
+                    selectedTickets={selectedTickets}
+                    setSelectedTickets={setSelectedTickets}
+                    uncalledNumbersCount={uncalledNumbersCount}
+                    onOpenCheckClaimModal={openCheckClaimModal}
+                    userProfile={userProfile}
+                    winnerPrize={winnerPrize}
+                  />
+                </div>
+                <SettingsDrawer
+                  settingsDrawerRef={settingsDrawerRef}
+                  timeInterval={timeInterval}
+                  setTimeInterval={handleTimeIntervalChange}
+                  printDefaultCards={printDefaultCards}
+                  setPrintDefaultCards={handlePrintDefaultCardsChange}
+                  manualMode={manualMode}
+                  setManualMode={handleManualModeChange}
+                  audibleCaller={audibleCaller}
+                  setAudibleCaller={handleAudibleCallerChange}
+                  selectedTheme={selectedTheme}
+                  setSelectedTheme={handleThemeChange}
+                  selectedDisplayLanguage={selectedDisplayLanguage}
+setSelectedDisplayLanguage={handleDisplayLanguageChange}
+                  selectedAudioLanguage={selectedAudioLanguage}
+                  setSelectedAudioLanguage={handleAudioLanguageChange}
+                  closeDrawer={closeSettingsDrawer}
                 />
-                <HomePage
-                  gameSettings={gameSettings}
-                  setGameSettings={handleGameSettingChange}
-                  onStartGame={handleStartGame}
-                  gameId={gameId}
-                  gameStatus={gameStatus}
-                  drawnNumbers={drawnNumbers}
-                  lastCalledNumber={lastCalledNumber}
-                  onCallNextNumber={callNextNumber}
-                  players={players} // Pass players state
-                  setPlayers={setPlayers} // Pass setter for local updates (e.g., search/pagination in AddPlayersPanel)
-                  onAddPlayers={handleAddPlayers} // Pass handler for activating tickets
-                  onRemoveSlip={handleRemoveSlip} // Pass handler for removing slips
-                  onEndGame={handleEndGame} // Pass handler for ending game
-                  selectedTickets={selectedTickets} // Pass selected tickets
-                  setSelectedTickets={setSelectedTickets} // Pass setter for selected tickets
-                  uncalledNumbersCount={uncalledNumbersCount} // Pass for display
-                  onOpenCheckClaimModal={openCheckClaimModal}
-                />
-              </div>
-              <SettingsDrawer
-                settingsDrawerRef={settingsDrawerRef}
-                timeInterval={timeInterval}
-                setTimeInterval={handleTimeIntervalChange}
-                printDefaultCards={printDefaultCards}
-                setPrintDefaultCards={handlePrintDefaultCardsChange}
-                manualMode={manualMode}
-                setManualMode={handleManualModeChange}
-                audibleCaller={audibleCaller}
-                setAudibleCaller={handleAudibleCallerChange}
-                selectedTheme={selectedTheme}
-                setSelectedTheme={handleThemeChange}
-                selectedDisplayLanguage={selectedDisplayLanguage}
-                setSelectedDisplayLanguage={handleDisplayLanguageChange}
-                selectedAudioLanguage={selectedAudioLanguage}
-                setSelectedAudioLanguage={handleAudioLanguageChange}
-                closeDrawer={closeSettingsDrawer}
-              />
-            </main>
+              </main>
+            </div>
           </div>
-        </div>
+        )
       ) : (
-        // Conditionally render LoginPage or RegisterPage
         showRegisterPage ? (
           <RegisterPage onRegister={handleRegister} onSwitchToLogin={handleSwitchToLogin} />
         ) : (

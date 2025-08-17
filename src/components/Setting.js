@@ -16,8 +16,7 @@ function SettingsDrawer({
   setSelectedDisplayLanguage, // This is handleDisplayLanguageChange from App.jsx
   selectedAudioLanguage,
   setSelectedAudioLanguage, // This is handleAudioLanguageChange from App.jsx
-  closeDrawer,
-  onOpenCommissionModal
+  closeDrawer
 }) {
 
   // Function to reset settings
@@ -248,18 +247,6 @@ function SettingsDrawer({
                     Display
                   </h1>
                   <hr className="my-2 border-base-content/20" /> 
-                  <h1 className="my-4 text-lg font-bold uppercase text-base-content">
-                        Operator Settings
-                    </h1>
-                    <hr className="my-2 border-base-content/20" />
-                    <button
-                        type="button"
-                        className="btn btn-primary w-full"
-                        onClick={onOpenCommissionModal}
-                    >
-                        Manage Commissions
-                    </button>
-
                   <p className="mb-2 mt-4 text-base font-semibold text-base-content"> 
                     Select Theme
                   </p>

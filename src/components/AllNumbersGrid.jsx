@@ -2,76 +2,55 @@
 // src/components/AllNumbersGrid.jsx
 import React from 'react';
 
-const getBingoLetter = (num) => {
-  if (num >= 1 && num <= 15) return 'B';
-  if (num >= 16 && num <= 30) return 'I';
-  if (num >= 31 && num <= 45) return 'N';
-  if (num >= 46 && num <= 60) return 'G';
-  if (num >= 61 && num <= 75) return 'O';
-  return '';
-};
-
 const AllNumbersGrid = ({ drawnNumbers = [], lastCalledNumber }) => {
   const isCalled = (num) => drawnNumbers.includes(num);
   const isLastCalled = (num) => lastCalledNumber && num === lastCalledNumber.number;
 
-  const numbers = Array.from({ length: 75 }, (_, i) => i + 1);
+  const bingoSections = [
+    { letter: 'B', start: 1, end: 15, color: 'bg-blue-600' },
+    { letter: 'I', start: 16, end: 30, color: 'bg-purple-600' },
+    { letter: 'N', start: 31, end: 45, color: 'bg-red-600' },
+    { letter: 'G', start: 46, end: 60, color: 'bg-teal-600' },
+    { letter: 'O', start: 61, end: 75, color: 'bg-indigo-600' },
+  ];
 
   return (
-    <div className="w-full rounded-lg bg-[#FFFFFF1A] p-2 flex flex-col items-center">
-      <h2 className="text-xl font-bold text-white mb-4">Called Numbers Board</h2>
-      {/* Responsive grid: Significantly reduced sizes for compactness */}
-      <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-10 gap-0.5 sm:gap-1 w-full max-w-4xl mx-auto p-1"> {/* Reduced gap */}
-        {numbers.map((num) => {
-          const letter = getBingoLetter(num);
-          const isCalledNum = isCalled(num);
-          const isLastCalledNum = isLastCalled(num);
+    <div className="flex flex-col gap-2 w-full h-full p-2 bg-black bg-opacity-20 rounded-lg">
+      {bingoSections.map(section => (
+        <div key={section.letter} className="flex items-center gap-3">
+          {/* BINGO Letter Box - Increased size */}
+          <div className="w-16 h-16 flex-shrink-0 flex items-center justify-center bg-red-600 text-white font-bold text-3xl rounded">
+            {section.letter}
+          </div>
+          {/* Numbers Row */}
+          <div className="flex-grow grid gap-1.5" style={{ gridTemplateColumns: 'repeat(15, minmax(0, 1fr))' }}>
+            {Array.from({ length: 15 }, (_, i) => section.start + i).map(num => {
+              const isNumCalled = isCalled(num);
+              const isNumLastCalled = isLastCalled(num);
 
-          // Smaller ball size and text size for all screen sizes
-          const ballSizeClasses = "w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10"; // Reduced sizes
-          const textSizeClasses = "text-xs sm:text-xs md:text-sm"; // Reduced sizes
+              // MODIFIED: Increased font size to text-3xl for better visibility
+              let cellClasses = 'aspect-square flex items-center justify-center rounded font-bold text-4xl transition-all duration-300 ';
 
-          // If the number has NOT been called, render an empty div as a placeholder to maintain grid structure
-          if (!isCalledNum) {
-            return <div key={num} className={ballSizeClasses}></div>; 
-          }
+              if (isNumLastCalled) {
+                // Style for the most recently called number (bright orange highlight)
+                cellClasses += 'bg-orange-500 text-white border-2 border-white scale-110 animate-pulse';
+              } else if (isNumCalled) {
+                // MODIFIED: Style for other called numbers now uses different colors per section
+                cellClasses += `${section.color} text-white`;
+              } else {
+                // Style for uncalled numbers (dark cells)
+                cellClasses += 'bg-gray-800 text-gray-400';
+              }
 
-          // If the number HAS been called, render the styled ball
-          let bgColor = '';
-          let textColor = 'text-white'; // Default text color for all called numbers
-
-          if (isLastCalledNum) {
-            // Last called number overrides other colors with a bright green
-            bgColor = 'bg-green-500'; // Bright green
-          } else {
-            // Other called numbers colored based on their BINGO letter
-            if (letter === 'B') {
-              bgColor = 'bg-green-700'; // Darker green for B
-            } else if (letter === 'I') {
-              bgColor = 'bg-black'; // Black for I
-            } else { 
-              // N, G, O default to purple
-              bgColor = 'bg-purple-700'; 
-            }
-          }
-
-          return (
-            <div
-              key={num}
-              className={`${ballSizeClasses} ${textSizeClasses}
-                          flex-shrink-0 flex items-center justify-center rounded-full font-bold
-                          ${bgColor} ${textColor}
-                          ${isLastCalledNum ? 'border-2 border-white animate-pulse' : 'border-2 border-transparent'}
-                          transition-all duration-200 ease-in-out`}
-            >
-              {letter}{num}
-            </div>
-          );
-        })}
-      </div>
-      {drawnNumbers.length === 0 && (
-        <p className="text-gray-400 text-center mt-4">No numbers have been called yet.</p>
-      )}
+              return (
+                <div key={num} className={cellClasses}>
+                  {num}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 };

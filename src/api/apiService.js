@@ -133,3 +133,34 @@ const response = await hl('POST', `/bingo-game/${gameId}/verify-bet`, true, { ca
 export async function callNextNumber(gameId) {
   return hl('POST', `/bingo-game/${gameId}/call-number`, true);
 }
+
+
+// NEW: Function to call the shuffle endpoint on the server
+export async function shuffleGameDeck(gameId) {
+  return hl('POST', `/bingo-game/${gameId}/shuffle`, true);
+}
+
+export async function getBingoCardDetails(gameId, slipId) {
+  return hl('GET', `/bingo-game/${gameId}/card/${slipId}`, true);
+}
+
+
+
+export async function getCommissionTiers() {
+  return hl('GET', '/retail/commission-tiers', true);
+}
+
+// Replaces the singular update function to be more efficient
+export async function updateCommissionTiers(tiers) {
+  return hl('PUT', '/retail/commission-tiers', true, tiers);
+}
+
+// Gets the user's preference (Tiered vs. Manual system)
+export async function getCommissionSystemStatus() {
+  return hl('GET', '/retail/commission-system-status', true);
+}
+
+// Updates the user's preference (Tiered vs. Manual system)
+export async function updateCommissionSystemStatus(status) {
+  return hl('PUT', '/retail/commission-system-status', true, { useTieredCommission: status });
+}

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 // Helper to format date for datetime-local input (YYYY-MM-DDTHH:MM)
 const formatDateTimeLocal = (date) => {
   const dt = new Date(date);
+  // This correctly adjusts the date to the user's local timezone for the input field
   dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset()); 
   return dt.toISOString().slice(0, 16);
 };
@@ -24,17 +25,18 @@ const formatDisplayDate = (isoString) => {
 };
 
 
-function SummaryReportPanel({ reportData, onFetchReport, initialBalanceForPeriod }) { // Receive initialBalanceForPeriod
-  // MODIFIED: Set default dates to cover a wider, more current range
-  const defaultStartDate = new Date('2024-01-01T00:00:00'); // Start of 2024
-  const defaultEndDate = new Date(); // Current date and time
+// 1. ACCEPT THE onExportPDF PROP
+function SummaryReportPanel({ reportData, onFetchReport, onExportPDF, initialBalanceForPeriod }) {
+  const defaultEndDate = new Date();
+  const defaultStartDate = new Date();
+  defaultStartDate.setHours(0, 0, 0, 0);
 
   const [fromDate, setFromDate] = useState(formatDateTimeLocal(defaultStartDate));
   const [toDate, setToDate] = useState(formatDateTimeLocal(defaultEndDate));
 
   useEffect(() => {
     onFetchReport(fromDate, toDate);
-  }, [onFetchReport, fromDate, toDate]); // Depend on fromDate/toDate to re-fetch when they change
+  }, []); 
 
   const handleRefresh = () => {
     onFetchReport(fromDate, toDate);
@@ -43,7 +45,7 @@ function SummaryReportPanel({ reportData, onFetchReport, initialBalanceForPeriod
   return (
     <div className="flex h-full flex-col justify-between space-y-2 gap-y-4">
       <div className="flex h-full w-full flex-col justify-between rounded-lg bg-[#FFFFFF1A] p-4">
-        {/* Date Filters and Refresh Button */}
+        {/* Date Filters and Action Buttons */}
         <div className="mx-4 my-4 flex items-center justify-between rounded-[10px] border border-[#FFFFFF33] px-2 py-4">
           <div className="flex flex-col">
             <h1 className="text-lg font-bold text-white mb-2">Summary</h1> 
@@ -70,12 +72,24 @@ function SummaryReportPanel({ reportData, onFetchReport, initialBalanceForPeriod
               </div>
             </div>
           </div>
-          <button
-            className="btn btn-warning mt-auto h-[48px] px-6 py-2 text-white font-semibold rounded-md"
-            onClick={handleRefresh}
-          >
-            Refresh
-          </button>
+          {/* 2. GROUP THE BUTTONS TOGETHER AND ADD THE EXPORT BUTTON */}
+          <div className="flex items-end gap-2">
+            <button
+              className="btn btn-warning h-[48px] px-6 py-2 text-white font-semibold rounded-md"
+              onClick={handleRefresh}
+            >
+              Refresh
+            </button>
+            {/* 3. THE EXPORT BUTTON IS ONLY SHOWN WHEN reportData EXISTS */}
+            {reportData && (
+              <button
+                className="btn btn-secondary h-[48px] px-6 py-2 text-white font-semibold rounded-md"
+                onClick={onExportPDF}
+              >
+                Export to PDF
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Summary Table */}

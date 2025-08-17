@@ -60,13 +60,16 @@ function LoginPage({ onLogin, onSwitchToRegister }) { // Added onSwitchToRegiste
             </button>
           </div>
         </form>
-        {/* ADDED: Register link, assuming it exists somewhere */}
+        {/*
+        
         <p className="text-center text-base-content text-sm mt-4">
           Don't have an account?{' '}
           <button onClick={onSwitchToRegister} className="link link-hover text-info">
             Register here
           </button>
         </p>
+        ADDED: Register link, assuming it exists somewhere */}
+        
       </div>
     </div>
   );

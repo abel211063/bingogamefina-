@@ -230,7 +230,8 @@ const userSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, enum: ['admin', 'retail'], default: 'retail' }, // Added role field
-  isActive: { type: Boolean, default: true } // Added isActive for stopping service
+  isActive: { type: Boolean, default: true }, // Added isActive for stopping service
+  useTieredCommission: { type: Boolean, default: true }
 });
 
 userSchema.pre('save', async function(next) {
@@ -246,7 +247,7 @@ const cashierConfigSchema = new mongoose.Schema({
   game_type: { type: String, required: true, unique: true },
   betAmount: { type: Number, default: 10 },
   houseEdge: { type: Number, default: 15 },
-  winningPattern: { type: String, default: 'anyTwoLines' },
+  winningPattern: { type: String, default: 'anyLine' },
 });
 const CashierConfig = mongoose.model('CashierConfig', cashierConfigSchema);
 
@@ -339,157 +340,281 @@ const isLineMarked = (line) => {
     return result;
 };
 
+// const checkPattern = (markedGrid, patternName, customPatternGrid = null) => {
+//     console.log(`\n[checkPattern] Verifying pattern "${patternName}" for markedGrid:\n${JSON.stringify(markedGrid, null, 2)}`);
+//     const isLineMarked = (line) => line.every(cell => cell);
+
+//     const checkHorizontal = () => {
+//         for (let r = 0; r < 5; r++) {
+//             if (isLineMarked(markedGrid[r])) return true;
+//         }
+//         return false;
+//     };
+
+//     const checkVertical = () => {
+//         for (let c = 0; c < 5; c++) {
+//             const column = [];
+//             for (let r = 0; r < 5; r++) {
+//                 column.push(markedGrid[r][c]);
+//             }
+//             if (isLineMarked(column)) return true;
+//         }
+//         return false;
+//     };
+
+//     const checkDiagonalTLBR = () => {
+//         const diagonal = [];
+//         for (let i = 0; i < 5; i++) {
+//             diagonal.push(markedGrid[i][i]);
+//         }
+//         return isLineMarked(diagonal);
+//     };
+
+//     const checkDiagonalTRBL = () => {
+//         const diagonal = [];
+//         for (let i = 0; i < 5; i++) {
+//             diagonal.push(markedGrid[i][4 - i]); // row i, col 4-i
+//         }
+//         return isLineMarked(diagonal);
+//     };
+
+//     const checkFourCorners = () => {
+//         return markedGrid[0][0] && markedGrid[0][4] &&
+//                markedGrid[4][0] && markedGrid[4][4];
+//     };
+
+//     const checkXPattern = () => {
+//         return checkDiagonalTLBR() && checkDiagonalTRBL();
+//     };
+
+//     const checkFullHouse = () => {
+//         for (let r = 0; r < 5; r++) {
+//             if (!isLineMarked(markedGrid[r])) return false;
+//         }
+//         return true;
+//     };
+
+//     const checkAnyTwoLines = () => {
+//         const lines = []; // Collect all 12 potential lines
+
+//         // Horizontal lines (5)
+//         for (let r = 0; r < 5; r++) {
+//             lines.push(markedGrid[r]);
+//         }
+//         // Vertical lines (5)
+//         for (let c = 0; c < 5; c++) {
+//             const column = [];
+//             for (let r = 0; r < 5; r++) {
+//                 column.push(markedGrid[r][c]);
+//             }
+//             lines.push(column);
+//         }
+//         // Diagonals (2)
+//         const diagTLBR = [];
+//         for (let i = 0; i < 5; i++) { diagTLBR.push(markedGrid[i][i]); }
+//         lines.push(diagTLBR);
+
+//         const diagTRBL = [];
+//         for (let i = 0; i < 5; i++) { diagTRBL.push(markedGrid[i][4 - i]); }
+//         lines.push(diagTRBL);
+
+//         // Check all unique pairs of lines
+//         for (let i = 0; i < lines.length; i++) {
+//             for (let j = i + 1; j < lines.length; j++) { // j starts from i + 1 to avoid duplicate pairs and (line, line)
+//                 if (isLineMarked(lines[i]) && isLineMarked(lines[j])) {
+//                     return true;
+//                 }
+//             }
+//         }
+//         return false;
+//     };
+
+//     const checkCustomPattern = () => {
+//         if (!customPatternGrid) {
+//             console.error("Error: 'custom' pattern selected but no customPatternGrid provided.");
+//             return false;
+//         }
+
+//         for (let r = 0; r < 5; r++) {
+//             for (let c = 0; c < 5; c++) {
+//                 // If the custom pattern expects a cell to be marked (true in customPatternGrid)
+//                 // AND that cell is NOT marked in the player's actual markedGrid,
+//                 // then the pattern is NOT met.
+//                 if (customPatternGrid[r][c] && !markedGrid[r][c]) {
+//                     return false;
+//                 }
+//                 // If customPatternGrid[r][c] is false, we don't care if markedGrid[r][c] is true or false.
+//                 // This allows the player to have extra marked spots not part of the pattern and still win.
+//             }
+//         }
+//         return true;
+//     };
+
+
+//     switch (patternName) {
+//         case 'anyTwoLines':
+//             console.log('[checkPattern] Checking "anyTwoLines" pattern.');
+//             return checkAnyTwoLines();
+//         case 'fullHouse':
+//             console.log('[checkPattern] Checking "fullHouse" pattern.');
+//             return checkFullHouse();
+//         case 'horizontalLine':
+//             console.log('[checkPattern] Checking "horizontalLine" pattern.');
+//             return checkHorizontal();
+//         case 'verticalLine':
+//             console.log('[checkPattern] Checking "verticalLine" pattern.');
+//             return checkVertical();
+//         case 'diagonalTLBR':
+//             console.log('[checkPattern] Checking "diagonalTLBR" pattern.');
+//             return checkDiagonalTLBR();
+//         case 'diagonalTRBL':
+//             console.log('[checkPattern] Checking "diagonalTRBL" pattern.');
+//             return checkDiagonalTRBL();
+//         case 'fourCorners':
+//             console.log('[checkPattern] Checking "fourCorners" pattern.');
+//             return checkFourCorners();
+//         case 'xPattern':
+//             console.log('[checkPattern] Checking "xPattern" pattern.');
+//             return checkXPattern();
+//         case 'anyLine': {
+//             console.log('[checkPattern] Checking "anyLine" pattern.');
+//             // Check all horizontal lines
+//             for (let r = 0; r < 5; r++) {
+//                 if (isLineMarked(markedGrid[r])) return true;
+//             }
+//             // Check all vertical lines
+//             for (let c = 0; c < 5; c++) {
+//                 const column = [];
+//                 for (let r = 0; r < 5; r++) {
+//                     column.push(markedGrid[r][c]);
+//                 }
+//                 if (isLineMarked(column)) return true;
+//             }
+//             // Check diagonal TL-BR
+//             const diagTLBR = [];
+//             for (let i = 0; i < 5; i++) { diagTLBR.push(markedGrid[i][i]); }
+//             if (isLineMarked(diagTLBR)) return true;
+            
+//             // Check diagonal TR-BL
+//             const diagTRBL = [];
+//             for (let i = 0; i < 5; i++) { diagTRBL.push(markedGrid[i][4 - i]); }
+//             if (isLineMarked(diagTRBL)) return true;
+ 
+//             // If none of the above returned true, it's not a win
+//             return false;
+//         }    
+//         case 'custom':
+//             console.log('[checkPattern] Checking "custom" pattern.');
+//             if (!customPatternGrid) {
+//                 console.error("[checkPattern] Error: 'custom' pattern selected but no customPatternGrid provided.");
+//                 return false;
+//             }
+//             console.log('[checkPattern] Custom pattern grid used for verification:', JSON.stringify(customPatternGrid, null, 2));
+//             return checkCustomPattern();
+//         default:
+//             console.warn(`[checkPattern] Unknown winning pattern: ${patternName}. Returning false.`);
+//             return false;
+//     }
+// };
+
 const checkPattern = (markedGrid, patternName, customPatternGrid = null) => {
-    console.log(`\n[checkPattern] Verifying pattern "${patternName}" for markedGrid:\n${JSON.stringify(markedGrid, null, 2)}`);
+    console.log(`\n[checkPattern] Verifying pattern "${patternName}"`);
     const isLineMarked = (line) => line.every(cell => cell);
 
+    // Helper functions that find and return the names of any winning lines
     const checkHorizontal = () => {
-        for (let r = 0; r < 5; r++) {
-            if (isLineMarked(markedGrid[r])) return true;
-        }
-        return false;
+        const lines = [];
+        for (let r = 0; r < 5; r++) { if (isLineMarked(markedGrid[r])) lines.push(`row_${r}`); }
+        return lines;
     };
-
     const checkVertical = () => {
-        for (let c = 0; c < 5; c++) {
-            const column = [];
-            for (let r = 0; r < 5; r++) {
-                column.push(markedGrid[r][c]);
-            }
-            if (isLineMarked(column)) return true;
-        }
-        return false;
+        const lines = [];
+        for (let c = 0; c < 5; c++) { if (isLineMarked(markedGrid.map(row => row[c]))) lines.push(`col_${c}`); }
+        return lines;
     };
-
-    const checkDiagonalTLBR = () => {
-        const diagonal = [];
-        for (let i = 0; i < 5; i++) {
-            diagonal.push(markedGrid[i][i]);
-        }
-        return isLineMarked(diagonal);
+    const checkDiagonals = () => {
+        const lines = [];
+        if (isLineMarked(markedGrid.map((row, i) => row[i]))) lines.push('diag_tlbr');
+        if (isLineMarked(markedGrid.map((row, i) => row[4 - i]))) lines.push('diag_trbl');
+        return lines;
     };
-
-    const checkDiagonalTRBL = () => {
-        const diagonal = [];
-        for (let i = 0; i < 5; i++) {
-            diagonal.push(markedGrid[i][4 - i]); // row i, col 4-i
-        }
-        return isLineMarked(diagonal);
-    };
-
-    const checkFourCorners = () => {
-        return markedGrid[0][0] && markedGrid[0][4] &&
-               markedGrid[4][0] && markedGrid[4][4];
-    };
-
-    const checkXPattern = () => {
-        return checkDiagonalTLBR() && checkDiagonalTRBL();
-    };
-
-    const checkFullHouse = () => {
-        for (let r = 0; r < 5; r++) {
-            if (!isLineMarked(markedGrid[r])) return false;
-        }
-        return true;
-    };
-
-    const checkAnyTwoLines = () => {
-        const lines = []; // Collect all 12 potential lines
-
-        // Horizontal lines (5)
-        for (let r = 0; r < 5; r++) {
-            lines.push(markedGrid[r]);
-        }
-        // Vertical lines (5)
-        for (let c = 0; c < 5; c++) {
-            const column = [];
-            for (let r = 0; r < 5; r++) {
-                column.push(markedGrid[r][c]);
-            }
-            lines.push(column);
-        }
-        // Diagonals (2)
-        const diagTLBR = [];
-        for (let i = 0; i < 5; i++) { diagTLBR.push(markedGrid[i][i]); }
-        lines.push(diagTLBR);
-
-        const diagTRBL = [];
-        for (let i = 0; i < 5; i++) { diagTRBL.push(markedGrid[i][4 - i]); }
-        lines.push(diagTRBL);
-
-        // Check all unique pairs of lines
-        for (let i = 0; i < lines.length; i++) {
-            for (let j = i + 1; j < lines.length; j++) { // j starts from i + 1 to avoid duplicate pairs and (line, line)
-                if (isLineMarked(lines[i]) && isLineMarked(lines[j])) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-
-    const checkCustomPattern = () => {
-        if (!customPatternGrid) {
-            console.error("Error: 'custom' pattern selected but no customPatternGrid provided.");
-            return false;
-        }
-
-        for (let r = 0; r < 5; r++) {
-            for (let c = 0; c < 5; c++) {
-                // If the custom pattern expects a cell to be marked (true in customPatternGrid)
-                // AND that cell is NOT marked in the player's actual markedGrid,
-                // then the pattern is NOT met.
-                if (customPatternGrid[r][c] && !markedGrid[r][c]) {
-                    return false;
-                }
-                // If customPatternGrid[r][c] is false, we don't care if markedGrid[r][c] is true or false.
-                // This allows the player to have extra marked spots not part of the pattern and still win.
-            }
-        }
-        return true;
-    };
-
+    
+    let winningLines = [];
 
     switch (patternName) {
+        case 'anyLine':
+            winningLines = [...checkHorizontal(), ...checkVertical(), ...checkDiagonals()];
+            break;
+
         case 'anyTwoLines':
-            console.log('[checkPattern] Checking "anyTwoLines" pattern.');
-            return checkAnyTwoLines();
-        case 'fullHouse':
-            console.log('[checkPattern] Checking "fullHouse" pattern.');
-            return checkFullHouse();
-        case 'horizontalLine':
-            console.log('[checkPattern] Checking "horizontalLine" pattern.');
-            return checkHorizontal();
-        case 'verticalLine':
-            console.log('[checkPattern] Checking "verticalLine" pattern.');
-            return checkVertical();
-        case 'diagonalTLBR':
-            console.log('[checkPattern] Checking "diagonalTLBR" pattern.');
-            return checkDiagonalTLBR();
-        case 'diagonalTRBL':
-            console.log('[checkPattern] Checking "diagonalTRBL" pattern.');
-            return checkDiagonalTRBL();
-        case 'fourCorners':
-            console.log('[checkPattern] Checking "fourCorners" pattern.');
-            return checkFourCorners();
-        case 'xPattern':
-            console.log('[checkPattern] Checking "xPattern" pattern.');
-            return checkXPattern();
-        case 'custom':
-            console.log('[checkPattern] Checking "custom" pattern.');
-            if (!customPatternGrid) {
-                console.error("[checkPattern] Error: 'custom' pattern selected but no customPatternGrid provided.");
-                return false;
+            const allFoundLines = [...checkHorizontal(), ...checkVertical(), ...checkDiagonals()];
+            if (allFoundLines.length >= 2) {
+                winningLines = allFoundLines;
             }
-            console.log('[checkPattern] Custom pattern grid used for verification:', JSON.stringify(customPatternGrid, null, 2));
-            return checkCustomPattern();
+            break;
+
+        case 'horizontalLine':
+            winningLines = checkHorizontal();
+            break;
+
+        case 'verticalLine':
+            winningLines = checkVertical();
+            break;
+
+        case 'diagonalTLBR':
+            if (isLineMarked(markedGrid.map((row, i) => row[i]))) winningLines.push('diag_tlbr');
+            break;
+            
+        case 'diagonalTRBL':
+            if (isLineMarked(markedGrid.map((row, i) => row[4 - i]))) winningLines.push('diag_trbl');
+            break;
+
+        case 'fourCorners':
+            if (markedGrid[0][0] && markedGrid[0][4] && markedGrid[4][0] && markedGrid[4][4]) {
+                winningLines = ['four_corners']; // Special case, no line to draw, but still a win
+            }
+            break;
+
+        case 'xPattern':
+            const diagonals = checkDiagonals();
+            if (diagonals.length === 2) {
+                winningLines = diagonals;
+            }
+            break;
+
+        case 'fullHouse':
+            let isFullHouse = true;
+            for (let r = 0; r < 5; r++) { if (!isLineMarked(markedGrid[r])) isFullHouse = false; }
+            if (isFullHouse) {
+                winningLines = ['full_house']; // Special case, no line to draw, but still a win
+            }
+            break;
+
+        case 'custom':
+            if (!customPatternGrid) { return false; }
+            let isCustomWin = true;
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    if (customPatternGrid[r][c] && !markedGrid[r][c]) {
+                        isCustomWin = false;
+                        break;
+                    }
+                }
+                if (!isCustomWin) break;
+            }
+            if (isCustomWin) {
+                winningLines = ['custom_win']; // Special case, no line to draw, but still a win
+            }
+            break;
+
         default:
             console.warn(`[checkPattern] Unknown winning pattern: ${patternName}. Returning false.`);
             return false;
     }
+
+    // If the winningLines array has anything in it, return the array. Otherwise, return false.
+    return winningLines.length > 0 ? winningLines : false;
 };
-
-
 
 
 async function calculateBalanceUpToDate(userId, upToDate) {
@@ -569,7 +694,7 @@ async function setupInitialData() {
         game_type: 'BINGO',
         betAmount: 10,
         houseEdge: 15,
-        winningPattern: 'anyTwoLines',
+        winningPattern: 'anyLine',
       });
       await newConfig.save();
       console.log('Default BINGO cashier config created.');
@@ -825,7 +950,7 @@ app.get('/api/bingo-card/default', authenticateToken, async (req, res) => {
 app.post('/api/bingo-game/generate', authenticateToken, async (req, res) => {
   try {
     // ADD customPatternDefinition to destructuring
-    const { betAmount, houseEdge, winningPattern, customPatternDefinition } = req.body;
+    const { betAmount, houseEdge, winningPattern,customPatternDefinition } = req.body;
     const user = req.user;
 
     if (!betAmount || !houseEdge || !winningPattern) {
@@ -853,6 +978,7 @@ app.post('/api/bingo-game/generate', authenticateToken, async (req, res) => {
       startTime: new Date(),
       // CONDITIONAL: Store customPatternGrid if the pattern is 'custom'
       customPatternGrid: winningPattern === 'custom' ? customPatternDefinition : null,
+      useTieredCommission: true,
     };
     activeGames.set(gameId, newGameState);
     console.log(`Game ${gameId} generated/started by ${user.username} (in-memory).`);
@@ -874,96 +1000,57 @@ app.post('/api/bingo-game/generate', authenticateToken, async (req, res) => {
 
 // MODIFIED: Activate Tickets endpoint with balance and active status checks
 // MODIFIED: Activate Tickets endpoint with balance and active status checks
+// --- REPLACE your activate-tickets endpoint with this ---
 app.post('/api/bingo-card/activate-tickets/:gameId', authenticateToken, async (req, res) => {
     const { gameId } = req.params;
     const gameState = activeGames.get(gameId);
     if (!gameState) { 
-        return res.status(404).json({ message: 'Game not found in active memory or it has ended. Please start a new game.' }); 
+        return res.status(404).json({ message: 'Game not found. Please start a new game.' }); 
     }
     const { ticketIds } = req.body;
     if (!ticketIds || !Array.isArray(ticketIds) || ticketIds.length === 0) {
-        return res.status(400).json({ message: 'Invalid or empty ticketIds provided.' });
+        return res.status(400).json({ message: 'Invalid ticketIds provided.' });
     }
-    if (gameState.status === 'in_progress') { return res.status(400).json({ message: 'Cannot activate tickets for a game in progress.' }); }
+    if (gameState.status !== 'waiting_for_players') { 
+        return res.status(400).json({ message: 'Cannot activate tickets for an active game.' }); 
+    }
 
-    // --- NEW BALANCE AND STATUS CHECKS ---
-    const user = await User.findById(req.user.userId); // Fetch user from DB for latest status
-    if (!user) {
-        return res.status(404).json({ message: 'User not found.' });
-    }
-    if (!user.isActive) { // Check if user account is active
-        return res.status(403).json({ message: 'Your account is currently inactive. Please contact support to recharge.' });
-    }
+    // --- NEW LOGIC: Check if user CAN afford the bets, but DO NOT charge them ---
+    const user = await User.findById(req.user.userId);
+    if (!user) { return res.status(404).json({ message: 'User not found.' }); }
+    if (!user.isActive) { return res.status(403).json({ message: 'Your account is inactive. Please recharge.' }); }
 
     const totalBetCost = gameState.betAmount * ticketIds.length;
-    const currentBalance = await getCurrentUserBalance(user._id); // Get current balance
+    const currentBalance = await getCurrentUserBalance(user._id);
 
-    if (currentBalance < totalBetCost) { // Check for sufficient balance
+    if (currentBalance < totalBetCost) {
         return res.status(403).json({ message: `Insufficient balance. Required: ${totalBetCost.toFixed(2)} ETB, Available: ${currentBalance.toFixed(2)} ETB.` });
     }
-    // --- END NEW CHECKS ---
+    // --- End of check ---
 
     const playersAdded = [];
-    const newBetTransactions = []; // Collect transactions for atomic save
     for (const slipId of ticketIds) {
         const stringSlipId = String(slipId);
         if (gameState.players.some(p => p.slipId === stringSlipId)) {
-            console.warn(`Slip ID ${stringSlipId} is already activated in this game. Skipping.`);
+            console.warn(`Slip ID ${stringSlipId} is already active. Skipping.`);
             continue;
         }
         const card = generateBingoCard(stringSlipId);
         if (card === null) {
-            // ERROR HERE: If card is null, you're sending 400 and trying to return.
-            // But if there are other slips in playersAdded/newBetTransactions,
-            // this route doesn't clean up potentially partial in-memory state for playersAdded.
-            // However, the 500 error suggests a deeper problem, not necessarily this.
-            return res.status(400).json({ message: `Failed to assign card for slip ID ${stringSlipId}. Card data not found.`, players: gameState.players, gameId: gameState.gameId });
+            return res.status(400).json({ message: `Card data not found for slip ID ${stringSlipId}.` });
         }
         playersAdded.push({
-            id: `P${stringSlipId}`,
-            slipId: stringSlipId,
-            bingoCard: card,
-            status: 'Active'
-        });
-        newBetTransactions.push({ // Push to array instead of saving immediately
-            userId: user._id, username: user.username,
-            gameId: gameState.gameId, slipId: stringSlipId, type: 'bet',
-            amount: gameState.betAmount,
+            id: `P${stringSlipId}`, slipId: stringSlipId, bingoCard: card, status: 'Active'
         });
     }
 
-    // Save all new transactions in a single batch atomically
-    if (newBetTransactions.length > 0) {
-        let session;
-        try {
-            session = await mongoose.startSession();
-            session.startTransaction();
-
-            await Transaction.insertMany(newBetTransactions, { session });
-            await checkBalanceAndSetStatus(user._id); // Update user status AFTER bets are recorded
-
-            await session.commitTransaction();
-        } catch (dbError) {
-            console.error('Error saving bet transactions to DB:', dbError);
-            if (session) await session.abortTransaction(); // Ensure session is aborted on error
-            return res.status(500).json({ message: `Database error activating slips. Some bets might not have been processed.`, details: dbError.message });
-        } finally {
-            if (session) {
-                // Ensure the session is ended even if there was an error in commit/abort.
-                // It's already been handled in the catch block via abort or after commit.
-                // This `finally` should primarily ensure `session.endSession()` is called.
-                // Mongoose handles `session.inTransaction()` if it was never started/committed/aborted.
-                // The previous fix already accounts for `session.inTransaction()`.
-                // No change needed here if the previous fix was applied correctly.
-                await session.endSession();
-            }
-        }
-    }
     gameState.players.push(...playersAdded);
     activeGames.set(gameId, gameState);
-    console.log(`Tickets activated and players added to game ${gameId}. Total players: ${gameState.players.length}`); // FIX: Use gameId here
+    console.log(`Tickets activated for game ${gameId}. Total players: ${gameState.players.length}. No transactions created yet.`);
+    
     res.status(200).json({
-        message: 'Tickets activated successfully!', players: gameState.players,
+        message: 'Tickets activated successfully!', 
+        players: gameState.players,
         gameId: gameState.gameId
     });
 });
@@ -1088,147 +1175,113 @@ app.patch('/api/bingo-card/:gameId/unassign/:slipId', authenticateToken, async (
 // jAe: POST /api/bingo-game/:gameId/verify-bet (Check Claim)
 
 
+
+// jAe: POST /api/bingo-game/:gameId/verify-bet (Check Claim)
 app.post('/api/bingo-game/:gameId/verify-bet', authenticateToken, async (req, res) => {
     const { gameId } = req.params;
     const { card_id: slipId } = req.body;
+    const { userId, username } = req.user;
 
-    console.log(`\n--- VERIFY BET REQUEST START ---`);
-    console.log(`Received claim request for Game ID: ${gameId}, Slip ID: ${slipId}`);
-
-    let session; // Declare session here to ensure it's in scope for finally block
-
+    let session;
     try {
-        session = await mongoose.startSession(); // Assign session here
-        session.startTransaction(); // Start the transaction immediately
+        session = await mongoose.startSession();
+        session.startTransaction();
 
         const gameState = activeGames.get(gameId);
-
         if (!gameState) {
-            console.error(`Verify Bet Error: Game ${gameId} not found in active memory.`);
             await session.abortTransaction();
-            return res.status(404).json({ message: 'Game not found in active memory.' });
+            return res.status(404).json({ message: 'Game not found.' });
         }
-        if (gameState.status !== 'in_progress') {
-            console.error(`Verify Bet Error: Game ${gameId} status is ${gameState.status}, not 'in_progress'.`);
+        if (gameState.status !== 'in_progress' && gameState.status !== 'claims_only') {
             await session.abortTransaction();
-            return res.status(400).json({ message: 'Game is not in progress. Claims can only be verified during an active game.' });
+            return res.status(400).json({ message: 'Game not in a valid state for claims.' });
         }
 
         const player = gameState.players.find(p => p.slipId === String(slipId));
-
         if (!player) {
-            console.error(`Verify Bet Error: Player with slip ID ${slipId} not found in game ${gameId}.`);
             await session.abortTransaction();
-            return res.status(200).json({
-                message: `Claim for Slip ID ${slipId} is not valid. Player not found in this game.`,
-                isValid: false,
-                slipId
-            });
+            return res.status(200).json({ isValid: false, message: `Player with Ticket #${slipId} not in this game.` });
         }
-        // Original `if (player.status === 'Claimed')` check removed as per previous discussions,
-        // as database check for 'win' transaction handles this more robustly.
-
-        console.log('Player object:', JSON.stringify(player));
-        console.log('Game state winning pattern:', gameState.winningPattern);
-        console.log('Game state custom pattern grid:', gameState.customPatternGrid);
-        console.log('Drawn numbers in game state:', gameState.drawnNumbers);
-
+        
         const playerCardMatrix = parseBingoCardString(player.bingoCard);
         const markedGrid = createMarkedGrid(playerCardMatrix, gameState.drawnNumbers);
+        const winningResult = checkPattern(markedGrid, gameState.winningPattern, gameState.customPatternGrid);
+        const isWinner = winningResult !== false;
 
-        const isWinner = checkPattern(
-            markedGrid,
-            gameState.winningPattern,
-            gameState.customPatternGrid
-        );
-
-        console.log(`Final result for Slip ID ${slipId} against pattern "${gameState.winningPattern}": isWinner = ${isWinner}`);
-
-        if (isWinner && player.status === 'Active') {
-            // Update in-memory player status
-            player.status = 'Claimed'; 
-
-            // --- MODIFIED PAYOUT LOGIC FOR MULTIPLE WINNERS ---
-            // Calculate the theoretical prize pool for the game (Bets - House Edge)
-            const initialGamePrizePool = (gameState.players.length * gameState.betAmount) * (1 - gameState.houseEdge / 100);
-
-            // Check if ANY win transaction already exists for this specific game.
-            // This determines if the actual payout for the game has already occurred.
-            const alreadyClaimedInGame = await Transaction.findOne({
-                gameId: gameState.gameId,
-                type: 'win'
-            }, null, { session }); // Must use the session for transaction consistency
-
-            let winningAmount = 0; // Default to 0 for subsequent winners
-            let message = `Congratulations! Ticket #${slipId} is a winner!`;
-
-            if (!alreadyClaimedInGame) {
-                // If this is the FIRST winner for this game, award the full prize pool.
-                winningAmount = parseFloat(initialGamePrizePool.toFixed(2));
-                message = `Congratulations! Ticket #${slipId} is a winner! Amount: ${winningAmount.toFixed(2)} ETB.`;
-            } else {
-                // If a win has already been recorded for this game, this is a subsequent winner.
-                // They get 0 ETB from the house, but are still recognized.
-                message = `Congratulations! Ticket #${slipId} is a winner! You get a share of the prize.`;
-            }
-            // --- END MODIFIED PAYOUT LOGIC ---
-
-            const roundedWinningAmount = parseFloat(winningAmount.toFixed(2)); // This will be 0 for subsequent winners
-
-            const transaction = new Transaction({
-                userId: req.user.userId,
-                username: req.user.username,
-                gameId: gameState.gameId,
-                slipId: player.slipId,
-                type: 'win',
-                amount: roundedWinningAmount, // This amount will be 0 for subsequent winners
+        if (!isWinner) {
+            await session.abortTransaction();
+            return res.status(200).json({
+                isValid: false,
+                message: `Claim for Ticket #${slipId} is not valid yet. Pattern not met with ${gameState.drawnNumbers.length} numbers called.`
             });
-
-            // Save the transaction within the session
-            await transaction.save({ session }); 
-            
-            await session.commitTransaction(); // Commit the transaction to make changes permanent
-
-            // Now call checkBalanceAndSetStatus AFTER the transaction commits
-            await checkBalanceAndSetStatus(req.user.userId); 
-
-            console.log(`Claim successful: Slip ID ${slipId} wins ${roundedWinningAmount.toFixed(2)} ETB. (Message: ${message})`);
-            res.status(200).json({
-                message: message, // Use the dynamically set message
+        }
+        
+        const alreadyClaimedInGame = await Transaction.findOne({ gameId: gameState.gameId, type: 'win' }).session(session);
+        
+        if (alreadyClaimedInGame) {
+            await session.commitTransaction();
+            return res.status(200).json({
                 isValid: true,
-                slipId,
-                winningAmount: roundedWinningAmount, // This is 0 for subsequent winners
-                gameStatus: 'in_progress' // Inform frontend the game status (remains in progress)
+                message: `Congratulations! Ticket #${slipId} is a valid winner!`,
+                winningLines: winningResult,
+                winningAmount: 0
             });
         } else {
-            console.log(`Claim invalid: Slip ID ${slipId} does not match pattern.`);
-            await session.abortTransaction(); // Abort if not a winner
-            res.status(200).json({
-                message: `Claim for Ticket #${slipId} is not valid yet. The required pattern is not met with ${gameState.drawnNumbers.length} numbers called.`,
-                isValid: false,
-                slipId,
-                gameStatus: 'in_progress' // Inform frontend game is still in progress
+            // --- MODIFIED DYNAMIC HOUSE EDGE LOGIC ---
+            const user = await User.findById(userId).session(session);
+            let houseEdgePercentage = gameState.houseEdge; // Default to game's fixed setting
+            const playerCount = gameState.players.length;
+
+            if (user && user.useTieredCommission) {
+                // CRITICAL OVERRIDE: If 1-5 players, house edge is ALWAYS 0%, regardless of settings.
+                if (playerCount >= 1 && playerCount <= 5) {
+                    houseEdgePercentage = 0;
+                } else {
+                    // For more than 5 players, use the user's configured tiers.
+                    const userTiers = await CommissionTier.find({ userId: userId }).session(session);
+                    const applicableTier = userTiers.find(tier => playerCount >= tier.min && playerCount <= tier.max);
+                    if (applicableTier) {
+                        houseEdgePercentage = applicableTier.percentage;
+                    }
+                }
+            }
+            // --- END MODIFIED LOGIC ---
+
+            const totalBetAmount = gameState.players.length * gameState.betAmount;
+            const prizePool = totalBetAmount * (1 - houseEdgePercentage / 100);
+            const winningAmount = parseFloat(prizePool.toFixed(2));
+
+            const betTransactions = gameState.players.map(p => ({
+                userId: userId, username: username, gameId: gameId,
+                slipId: p.slipId, type: 'bet', amount: gameState.betAmount
+            }));
+            await Transaction.insertMany(betTransactions, { session });
+
+            const winTransaction = new Transaction({
+                userId: userId, username: username, gameId: gameId,
+                slipId: player.slipId, type: 'win', amount: winningAmount
+            });
+            await winTransaction.save({ session });
+            
+            player.status = 'Claimed';
+            await session.commitTransaction();
+            await checkBalanceAndSetStatus(userId);
+
+            return res.status(200).json({
+                isValid: true,
+                message: `Congratulations! Ticket #${slipId} is the winner! Amount: ${winningAmount.toFixed(2)} ETB.`,
+                winningLines: winningResult,
+                winningAmount: winningAmount
             });
         }
     } catch (error) {
-        console.error('SERVER-SIDE UNHANDLED ERROR IN VERIFY BET ROUTE:', error);
-        // If an error occurred and the session is still active (transaction not committed/aborted)
-        if (session && session.inTransaction()) {
-            await session.abortTransaction(); // Ensure transaction is aborted
-        }
-        res.status(500).json({ message: 'Internal server error during claim verification.', details: error.message });
+        console.error('SERVER ERROR during verify-bet:', error);
+        if (session) await session.abortTransaction();
+        return res.status(500).json({ message: 'Internal server error during claim verification.' });
     } finally {
-
-        if (session) { 
-            if (session.inTransaction()) {
-                await session.abortTransaction(); // Abort any dangling transaction
-            }
-            await session.endSession(); // End the session
-        } // End of session block
-        console.log(`--- VERIFY BET REQUEST END FOR GAME ${gameId} ---\n`); // MODIFIED: Use `gameId` which is defined in this scope
+        if (session) session.endSession();
     }
 });
-
 
 
 
@@ -1410,10 +1463,210 @@ app.get('/api/cashiers/summary', authenticateToken, async (req, res) => {
     }
 });
 
+// NEW ENDPOINT: Shuffle the deck of uncalled numbers for an active game
+app.post('/api/bingo-game/:gameId/shuffle', authenticateToken, (req, res) => {
+    const { gameId } = req.params;
+    const gameState = activeGames.get(gameId);
+    if (!gameState) { 
+        return res.status(404).json({ message: 'Game not found in active memory.' }); 
+    }
+    if (gameState.status !== 'waiting_for_players') {
+        return res.status(400).json({ message: 'Can only shuffle before the game starts.' });
+    }
+
+    // Re-initialize and shuffle the uncalledNumbers array
+    gameState.uncalledNumbers = Array.from({ length: 75 }, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+    activeGames.set(gameId, gameState);
+
+    console.log(`Deck for game ${gameId} has been shuffled.`);
+    res.status(200).json({ message: 'Deck shuffled successfully.' });
+});
+
+// NEW ENDPOINT: Update bet amount for a game before it starts
+app.patch('/api/bingo-game/:gameId/bet-amount', authenticateToken, (req, res) => {
+    const { gameId } = req.params;
+    const { newBetAmount } = req.body;
+    
+    const gameState = activeGames.get(gameId);
+    if (!gameState) { 
+        return res.status(404).json({ message: 'Game not found in active memory.' }); 
+    }
+    
+    if (typeof newBetAmount !== 'number' || newBetAmount <= 0) {
+        return res.status(400).json({ message: 'Invalid bet amount provided.' });
+    }
+
+    // Allow changing bet amount only before players have been added and game has started
+    if (gameState.players.length > 0 || gameState.status !== 'waiting_for_players') {
+        return res.status(400).json({ message: 'Bet amount can only be changed on a new, empty game.' });
+    }
+
+    gameState.betAmount = newBetAmount;
+    activeGames.set(gameId, gameState);
+
+    console.log(`Bet amount for game ${gameId} updated to ${newBetAmount}.`);
+    res.status(200).json({ message: 'Bet amount updated successfully.', newBetAmount: gameState.betAmount });
+});
+
+// --- END: ADD THIS SNIPPET TO YOUR server.js FILE ---
+
+
+// NEW ENDPOINT: Get details for a specific bingo card in a game
+app.get('/api/bingo-game/:gameId/card/:slipId', authenticateToken, (req, res) => {
+    const { gameId, slipId } = req.params;
+    const gameState = activeGames.get(gameId);
+
+    if (!gameState) {
+        return res.status(404).json({ message: 'Game not found in active memory.' });
+    }
+
+    const player = gameState.players.find(p => p.slipId === String(slipId));
+
+    if (!player) {
+        return res.status(404).json({ message: `Player with slip ID ${slipId} not found in this game.` });
+    }
+
+    // Return the specific details needed by the frontend modal
+    res.status(200).json({
+        slipId: player.slipId,
+        bingoCard: player.bingoCard // This is the 'B1-2-3...' string
+    });
+});
+
+
+
+// --- Mongoose Schema for Commission Tiers ---
+const commissionTierSchema = new mongoose.Schema({
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    label: { type: String, required: true }, // e.g., "1-5", ">60"
+    min: { type: Number, required: true },
+    max: { type: Number, required: true }, // Use a high number like 9999 for ">60"
+    percentage: { type: Number, default: 0 }
+});
+commissionTierSchema.index({ userId: 1 }); // Index for faster lookups
+const CommissionTier = mongoose.model('CommissionTier', commissionTierSchema);
+
+async function createDefaultTiersForUser(userId) {
+    // Check if tiers already exist to prevent duplicates
+    const existingTiers = await CommissionTier.findOne({ userId: userId });
+    if (existingTiers) return;
+
+    console.log(`Creating default commission tiers for user: ${userId}`);
+    const defaultTiersData = [
+        // CORRECTED: The first tier now defaults to 0% commission.
+        { label: '1-5', min: 1, max: 5, percentage: 0 }, 
+        { label: '6-10', min: 6, max: 10, percentage: 10 },
+        { label: '11-20', min: 11, max: 20, percentage: 20 },
+        { label: '21-30', min: 21, max: 30, percentage: 31 },
+        { label: '31-40', min: 31, max: 40, percentage: 37 },
+        { label: '41-50', min: 41, max: 50, percentage: 41 },
+        { label: '51-60', min: 51, max: 60, percentage: 45 },
+        { label: '>60', min: 61, max: 9999, percentage: 50 }
+    ];
+    const tiersToInsert = defaultTiersData.map(tier => ({ ...tier, userId }));
+    await CommissionTier.insertMany(tiersToInsert);
+    console.log(`Default tiers created successfully for user: ${userId}`);
+}
+
+
+
+
+app.get('/api/retail/commission-tiers', authenticateToken, async (req, res) => {
+    try {
+        let tiers = await CommissionTier.find({ userId: req.user.userId }).sort({ min: 1 });
+        // If user has no tiers, create the default set for them
+        if (tiers.length === 0) {
+            await createDefaultTiersForUser(req.user.userId); 
+            tiers = await CommissionTier.find({ userId: req.user.userId }).sort({ min: 1 });
+        }
+        res.status(200).json(tiers);
+    } catch (error) {
+        console.error("Error fetching commission tiers:", error);
+        res.status(500).json({ message: 'Server error fetching tiers.' });
+    }
+});
+
+
+
+// UPDATE an existing tier for the logged-in user
+app.put('/api/retail/commission-tiers/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        // Only allow updating the percentage
+        const { percentage } = req.body;
+
+        if (typeof percentage !== 'number' || percentage < 0 || percentage > 100) {
+            return res.status(400).json({ message: 'Invalid percentage value.' });
+        }
+
+        const updatedTier = await CommissionTier.findOneAndUpdate(
+            { _id: id, userId: req.user.userId }, // Ensure user can only update their own tiers
+            { percentage },
+            { new: true }
+        );
+
+        if (!updatedTier) {
+            return res.status(404).json({ message: 'Tier not found or permission denied.' });
+        }
+        res.status(200).json(updatedTier);
+    } catch (error) {
+        console.error("Error updating commission tier:", error);
+        res.status(500).json({ message: 'Server error updating tier.' });
+    }
+});
+
+// GET the user's commission system preference
+app.get('/api/retail/commission-system-status', authenticateToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.userId).select('useTieredCommission');
+        if (!user) return res.status(404).json({ message: 'User not found.' });
+        res.status(200).json({ useTieredCommission: user.useTieredCommission });
+    } catch(err) {
+        res.status(500).json({ message: 'Server error.'});
+    }
+});
+
+app.put('/api/retail/commission-tiers', authenticateToken, async (req, res) => {
+    try {
+        const tiersToUpdate = req.body; // Expects an array: [{ _id, percentage }]
+        if (!Array.isArray(tiersToUpdate)) {
+            return res.status(400).json({ message: 'Request body must be an array of tiers.' });
+        }
+
+        const bulkOps = tiersToUpdate.map(tier => {
+            const percentage = Number(tier.percentage);
+            if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+                 // Skip invalid operations instead of throwing an error for the whole batch
+                console.warn(`Invalid percentage value for tier ID ${tier._id}. Skipping.`);
+                return null;
+            }
+            return {
+                updateOne: {
+                    filter: { _id: tier._id, userId: req.user.userId }, // Security check ensures user can only update their own tiers
+                    update: { $set: { percentage: percentage } }
+                }
+            };
+        }).filter(op => op !== null); // Filter out any invalid operations
+
+        if (bulkOps.length > 0) {
+            await CommissionTier.bulkWrite(bulkOps);
+        }
+
+        res.status(200).json({ message: 'Commission tiers updated successfully.' });
+    } catch (error) {
+        console.error("Error bulk updating commission tiers:", error);
+        res.status(500).json({ message: error.message || 'Server error updating tiers.' });
+    }
+});
+
+
+
+
 app.use(express.static(path.join(__dirname, '..', 'dist')));
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
+app.get('/', (req, res) => {
+    // This only catches requests to the root path
+    res.sendFile(path.join(__dirname, '..', 'dist', 'index.html'));
 });
 
 // Start the server

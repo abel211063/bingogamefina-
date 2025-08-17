@@ -848,3 +848,14 @@ input[type=number]::-webkit-outer-spin-button {
 /* These are already in Tailwind format and don't need to be defined here if used directly in JSX */
 /* .w-\[1\.8rem\], .h-\[1\.8rem\], .rounded-\[1\.5rem\] etc. */
 /* You might want to define some of the repeated custom colors and sizes in tailwind.config.js for cleaner class names */
+
+
+
+
+
+
+.modal-bottom.modal-open .modal-box,
+.modal-middle.modal-open .modal-box {
+  animation: none !important;
+  transition: none !important;
+}

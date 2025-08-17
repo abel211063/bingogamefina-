@@ -30,7 +30,7 @@ function TicketSelectionPanel({ tickets, selectedTickets, onSelectTicket, onActi
             {tickets.map((ticketNumber) => (
               <div
                 key={ticketNumber}
-                className={`flex h-[50px] w-[71.2px] cursor-pointer items-center justify-center rounded-md border border-[#FFFFFF33] text-white ${
+                className={`flex h-[50px] w-[71.2px]  cursor-pointer items-center justify-center rounded-md border border-[#FFFFFF33] text-white text-2xl ${
                   selectedTickets.includes(ticketNumber)
                     ? 'bg-white !text-slate-950'
                     : ''

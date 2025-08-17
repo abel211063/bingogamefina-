@@ -107,6 +107,12 @@ const getBaseVisualPattern = (patternName, customPatternGrid) => {
         case 'xPattern':
             pattern.forEach((row, i) => { row[i] = true; row[4 - i] = true; });
             break;
+        case 'anyLine':
+            // A representative visual combining multiple line types
+            pattern[2].fill(true); // Middle horizontal
+            pattern.forEach(row => row[2] = true); // Middle vertical
+            pattern.forEach((row, i) => row[i] = true); // TL-BR diagonal
+            break;    
         case 'custom':
             return customPatternGrid; // For custom, use the passed grid directly
         default:
@@ -160,6 +166,16 @@ export default function WinningPatternDisplay({
       sequenceOfFrames = getAllVerticalLinePatterns();
     } else if (winningPatternName === 'anyTwoLines') {
       sequenceOfFrames = getAllAnyTwoLinesPatterns();
+    }
+    else if (winningPatternName === 'anyLine') {
+      // For 'anyLine', cycle through all possible single lines
+      const horizontal = getAllHorizontalLinePatterns();
+      const vertical = getAllVerticalLinePatterns();
+      const p_diag_tlbr = Array(5).fill(0).map(() => Array(5).fill(false));
+      p_diag_tlbr.forEach((row, i) => row[i] = true);
+      const p_diag_trbl = Array(5).fill(0).map(() => Array(5).fill(false));
+      p_diag_trbl.forEach((row, i) => row[4 - i] = true);
+      sequenceOfFrames = [...horizontal, ...vertical, p_diag_tlbr, p_diag_trbl];
     } else {
       // Default: If pattern not found or no specific animation, just display static
       setAnimatedDisplayPattern(baseSourcePattern);
